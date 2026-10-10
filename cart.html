@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cart and checkout | WAKATA Stationers</title>
+<meta name="description" content="WAKATA, the Wakiso Kampala Teachers' Association: mock examinations, past papers, practical workbooks and holiday packages. Affordable quality assessment.">
+<meta name="theme-color" content="#043AA0">
+<link rel="icon" type="image/png" href="assets/img/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700;8..60,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body data-page="cartPage">
+<a class="skip" href="#main">Skip to content</a>
+<div class="strip"><div class="wrap"><span>Free pickup. Delivery across Kampala and Wakiso.</span><span><a href="tel:+256700000000">+256 700 000 000</a><span>Monday to Saturday, 8am to 6pm</span></span></div></div>
+<header class="hdr"><div class="wrap">
+  <a class="brand" href="index.html" aria-label="WAKATA home"><img src="assets/img/logo.png" alt="" width="58" height="56"><span><b>WAKATA</b><small>Affordable quality assessment</small></span></a>
+  <nav class="nav" id="nav" aria-label="Main"><a href="books.html">Books</a><a href="past-papers.html">Past papers</a><a href="exam-sets.html">Exam sets</a><a href="holiday-packages.html">Holiday packages</a><a href="about.html">About</a><a href="contact.html">Contact</a></nav>
+  <div class="hdr-tools">
+    <form class="hsearch" action="books.html" role="search"><label class="sr" for="hs">Search books</label><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg><input id="hs" name="q" type="search" placeholder="Search books"></form>
+    <a class="cart-btn" href="cart.html" aria-label="Open cart"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.5 12.5a1 1 0 0 0 1 .8h9.2a1 1 0 0 0 1-.8L21 7H6"/></svg><span class="cart-count" data-n="0"></span></a>
+    <button class="burger" id="burger" type="button" aria-label="Menu" aria-expanded="false" aria-controls="nav"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg></button>
+  </div>
+</div></header>
+<main id="main">
+<section class="page-head"><div class="wrap"><div class="crumbs"><a href="index.html">Home</a><span>/</span>Cart</div><h1>Your cart</h1><p>Review your items, choose how you want to receive them and pay.</p></div></section>
+<div class="wrap">
+  <div id="cart-empty" class="panel cart-empty" style="margin-block:2.4rem 4rem" hidden><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.5 12.5a1 1 0 0 0 1 .8h9.2a1 1 0 0 0 1-.8L21 7H6"/></svg><h2>Your cart is empty</h2><p class="muted">Add books, past papers or a holiday package to get started.</p><a class="btn btn-primary" href="books.html">Shop books</a> <a class="btn btn-line" href="past-papers.html">Find past papers</a></div>
+  <div id="cart-wrap" class="cartgrid">
+    <div class="panel"><h2>Items</h2><div id="lines"></div><button class="btn btn-line btn-sm" id="clear" type="button" style="margin-top:1rem">Clear cart</button></div>
+    <form class="panel" id="checkout" novalidate>
+      <h2>Order summary</h2><div id="summary"></div>
+      <div id="delivery-box" style="margin-top:1.2rem"><h2>Delivery</h2><div class="radios">
+        <label class="radio"><input type="radio" name="delivery" value="0" checked><span><b>Pick up from our shop</b><small>Ready within one working day</small></span><em>Free</em></label>
+        <label class="radio"><input type="radio" name="delivery" value="8000"><span><b>Kampala and Wakiso</b><small>1 to 2 days</small></span><em>UGX 8,000</em></label>
+        <label class="radio"><input type="radio" name="delivery" value="15000"><span><b>Upcountry courier</b><small>2 to 4 days</small></span><em>UGX 15,000</em></label></div></div>
+      <h2 style="margin-top:1.2rem">Your details</h2>
+      <div class="field"><label for="o-name">Full name</label><input id="o-name" required autocomplete="name"><span class="err">Enter your name.</span></div>
+      <div class="row2"><div class="field"><label for="o-phone">Phone (mobile money)</label><input id="o-phone" type="tel" required autocomplete="tel"><span class="err">Enter a valid phone number.</span></div>
+      <div class="field"><label for="o-email">Email</label><input id="o-email" type="email" required autocomplete="email"><span class="err">Enter a valid email address.</span></div></div>
+      <div class="field" id="addr-field" hidden><label for="o-addr">Delivery address or school</label><textarea id="o-addr" style="min-height:80px" required></textarea><span class="err">Enter where we should deliver.</span></div>
+      <h2 style="margin-top:.6rem">Payment</h2>
+      <div class="radios">
+        <label class="radio"><input type="radio" name="pay" value="mtn" data-name="MTN Mobile Money"><span><b>MTN Mobile Money</b><small>Approve the prompt on your phone</small></span></label>
+        <label class="radio"><input type="radio" name="pay" value="airtel" data-name="Airtel Money"><span><b>Airtel Money</b><small>Approve the prompt on your phone</small></span></label>
+        <label class="radio"><input type="radio" name="pay" value="card" data-name="Visa or Mastercard"><span><b>Visa or Mastercard</b><small>Secure card payment</small></span></label>
+        <label class="radio"><input type="radio" name="pay" value="cash" data-name="cash on pickup"><span><b>Pay when you collect</b><small>Cash at our shop</small></span></label></div>
+      <button class="btn btn-primary btn-block" type="submit">Place order</button>
+      <p class="muted" style="font-size:.82rem;margin:.8rem 0 0">This is a design preview. No payment is taken.</p>
+    </form>
+  </div>
+</div>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><div class="box"><div class="okc"><svg viewBox="0 0 24 24"><polyline points="4 13 10 19 21 6"/></svg></div>
+  <h2 id="mt">Order received</h2><p>Your order reference is <b id="ref"></b>. We will confirm your <span id="pay-name"></span> payment by phone or email.</p><p class="note">Design preview only. No real order was created.</p><button class="btn btn-primary" type="button" style="margin-top:1rem">Back to home</button></div></div>
+</main>
+<section class="news"><div class="wrap">
+  <div><h2>Get new papers first</h2><p>One short email after each mock series. No spam.</p></div>
+  <form id="newsletter" novalidate><label class="sr" for="nl">Email address</label><input id="nl" name="email" type="email" placeholder="Your email address" required><button class="btn btn-primary" type="submit">Subscribe</button></form>
+</div></section>
+<footer class="ftr"><div class="wrap">
+  <div class="cols">
+    <div><a class="brand" href="index.html"><img src="assets/img/logo-white.png" alt="" width="70" height="67"><span><b>WAKATA</b><small>Wakiso Kampala Teachers' Association</small></span></a>
+      <p>Mock examinations, past papers and practical workbooks written by teachers, priced so every school can afford them.</p><div class="pay"><span>MTN MoMo</span><span>Airtel Money</span><span>Visa</span><span>Mastercard</span></div></div>
+    <div><h4>Shop</h4><ul><li><a href="books.html">Books</a></li><li><a href="past-papers.html">Past papers</a></li><li><a href="exam-sets.html">Exam sets</a></li><li><a href="holiday-packages.html">Holiday packages</a></li><li><a href="cart.html">Your cart</a></li></ul></div>
+    <div><h4>WAKATA</h4><ul><li><a href="about.html">About us</a></li><li><a href="contact.html">Contact</a></li><li><a href="contact.html#faq">Questions and answers</a></li></ul></div>
+    <div><h4>Contact</h4><ul><li><a href="tel:+256700000000">+256 700 000 000</a></li><li><a href="mailto:info@wakatastationers.com">info@wakatastationers.com</a></li><li>Wakiso and Kampala, Uganda</li><li>Monday to Saturday, 8am to 6pm</li></ul></div>
+  </div>
+  <div class="bottom"><span>&copy; 2026 Wakiso Kampala Teachers' Association (WAKATA). All rights reserved.</span><span>Affordable quality assessment</span></div>
+</div></footer>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/enhance.js"></script>
+</body>
+</html>
