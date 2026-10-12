@@ -2,13 +2,12 @@
    WAKATA navbar sign-in control (shared by every public page)
    Signed out: Sign in / Create account / Admin sign in
    Signed in:  customer menu (dashboard, downloads, orders...)
-   The customer session lives in localStorage key "wk_user"
-   (front-end preview only, replace with Laravel auth later).
+   The signed-in customer comes from Laravel (WK.user, set in partials/site/wk-globals).
    ========================================================== */
 (function () {
   'use strict';
   var tools = document.querySelector('.hdr-tools'); if (!tools || document.getElementById('acct')) return;
-  var user = null; try { user = JSON.parse(localStorage.getItem('wk_user')); } catch (e) { }
+  var user = WK.user || null;
   var I = function (p) { return '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">' + p + '</svg>'; };
   var P = {
     user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
@@ -41,7 +40,11 @@
   btn.addEventListener('click', function (e) { e.stopPropagation(); set(!wrap.classList.contains('open')); });
   document.addEventListener('click', function (e) { if (!wrap.contains(e.target)) set(false); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { set(false); } });
-  var out = wrap.querySelector('[data-out]'); if (out) out.addEventListener('click', function () { try { localStorage.removeItem('wk_user'); } catch (e) { } location.reload(); });
+  var out = wrap.querySelector('[data-out]'); if (out) out.addEventListener('click', function () {
+    var f = document.createElement('form'); f.method = 'POST'; f.action = WK.r.accountLogout;
+    f.innerHTML = '<input type="hidden" name="_token" value="' + esc(WK.csrf) + '">';
+    document.body.appendChild(f); f.submit();
+  });
   /* Signed-in customers: pre-fill the checkout details on the cart page */
   if (user && user.email) {
     var fill = function (id, v) { var el = document.getElementById(id); if (el && v && !el.value) el.value = v; };

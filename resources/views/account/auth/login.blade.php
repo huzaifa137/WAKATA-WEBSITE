@@ -11,14 +11,14 @@
     <div class="mini-stats"><div><b>129</b><span>Past papers</span></div><div><b>23</b><span>Books</span></div><div><b>6</b><span>Exam sets</span></div></div>
   </div>
   <div class="auth-form"><div class="auth-card"><div class="brand-s"><img src="{{ asset('assets/img/logo.png') }}" alt="" width="54" height="52"><b style="font-family:var(--serif);font-size:1.5rem;color:var(--head)">WAKATA</b></div><h1>Welcome back</h1><p class="lead">Sign in to your WAKATA account.</p>
-<form data-validate data-onsubmit="login" novalidate>
- <div class="field"><label for="email">Email address</label><input id="email" name="email" type="email" required autocomplete="username" value="joseph.ssemakula@greenhill.ac.ug" placeholder="you@school.ac.ug"><span class="err">Enter a valid email address.</span></div>
+<form method="POST" action="{{ route('account.login.submit') }}" data-validate data-native novalidate>
+@csrf
+ <div class="field"><label for="email">Email address</label><input id="email" name="email" type="email" required autocomplete="username" value="{{ old('email') }}" placeholder="you@school.ac.ug"><span class="err">Enter a valid email address.</span></div>
  <div class="field"><label for="password">Password</label><div class="pw" data-pw><input id="password" name="password" type="password" required minlength="6" autocomplete="current-password" placeholder="••••••••" ><button type="button" aria-label="Show password">@icon('eye')</button></div><span class="err">Enter at least 6 characters.</span></div>
  <div class="row-b"><label class="check"><input type="checkbox" name="remember" checked> Keep me signed in</label><a href="{{ route('account.forgot-password') }}">Forgot password?</a></div>
  <button class="btn btn-primary btn-block" type="submit">Sign in</button>
 </form>
 <p class="foot" style="margin-top:1.2rem">New to WAKATA? <a href="{{ route('account.register') }}"><b>Create an account</b></a></p>
-<div class="demo-box"><b>Preview mode.</b> Any valid email and a password of 6 or more characters signs you in and shows sample orders. To see the empty state of a brand-new customer, create an account instead.</div>
 <div class="foot" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap"><a href="{{ route('site.home') }}">&larr; Back to the website</a><a href="{{ route('admin.login') }}">@icon('shield') Staff? Admin sign in</a></div></div></div>
 </div>
 @endsection

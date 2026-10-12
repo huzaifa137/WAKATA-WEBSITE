@@ -7,7 +7,7 @@
     <button class="iconbtn" id="themeBtn" type="button" aria-label="Switch light or dark theme">@icon('moon')</button>
     <div class="dd" id="notifDd"><button class="iconbtn" type="button" aria-label="Notifications" aria-haspopup="true" data-dd>@icon('bell')<span class="dot"></span></button>
       <div class="dd-menu notif" id="notifList"><div class="dd-h">Notifications</div></div></div>
-    <div class="dd"><button class="profile-btn" type="button" aria-haspopup="true" data-dd><span class="avatar sm" data-me-initials>JS</span><div><b data-me-name>Customer</b><small>Customer</small></div></button>
+    <div class="dd"><button class="profile-btn" type="button" aria-haspopup="true" data-dd><span class="avatar sm" data-me-initials>{{ $authCustomer->initials ?? '' }}</span><div><b data-me-name>{{ $authCustomer->name ?? 'Customer' }}</b><small>Customer</small></div></button>
       <div class="dd-menu"><a href="{{ route('account.profile') }}">@icon('user')Profile & settings</a><a href="{{ route('account.orders') }}">@icon('box')My orders</a><a href="{{ route('account.library') }}">@icon('download')My downloads</a><hr><a href="{{ route('site.home') }}">@icon('shop')Back to the shop</a><button type="button" data-logout>@icon('logout')Sign out</button></div></div>
   </div>
 </header>

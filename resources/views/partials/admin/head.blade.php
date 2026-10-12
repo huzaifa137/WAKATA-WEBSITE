@@ -1,6 +1,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
+@include('partials.admin.auth-state')
 <title>@yield('title', 'Dashboard') | WAKATA Admin</title>
 <meta name="theme-color" content="#043AA0">
 <link rel="icon" type="image/png" href="{{ asset('assets/img/favicon.png') }}">

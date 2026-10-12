@@ -9,4 +9,7 @@ return [
     'email'       => 'info@wakatastationers.com',
     'hours'       => 'Monday to Saturday, 8am to 6pm',
     'address'     => 'Wakiso and Kampala, Uganda',
+
+    // Password for the seeded admin (and the local demo customer). Set WAKATA_SEED_PASSWORD in .env.
+    'seed_password' => env('WAKATA_SEED_PASSWORD'),
 ];

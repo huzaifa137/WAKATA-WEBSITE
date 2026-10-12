@@ -50,4 +50,4 @@ $groups = [
 <a class="sb-link{{ $on ? ' on' : '' }}" href="{{ route($it['route']) }}"{!! $on ? ' aria-current="page"' : '' !!}>@icon($it['icon'])<span>{{ $it['label'] }}</span>{!! empty($it['badge']) ? '' : '<span class="sb-badge" data-badge="' . e($it['badge']) . '"></span>' !!}{!! empty($it['ext']) ? '' : \App\Support\Icon::svg('external', 'sb-ext') !!}</a>
 @endforeach
 @endforeach
-</nav><div class="sb-foot"><span class="avatar" data-me-initials>GN</span><div><b data-me-name>Grace Namutebi</b><small>Super admin</small></div></div></aside>
+</nav><div class="sb-foot"><span class="avatar" data-me-initials>{{ $authAdmin->initials ?? 'AD' }}</span><div><b data-me-name>{{ $authAdmin->name ?? 'Admin' }}</b><small>{{ $authAdmin->role_label ?? 'Admin' }}</small></div></div></aside>

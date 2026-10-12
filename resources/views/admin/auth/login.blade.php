@@ -11,13 +11,13 @@
     <div class="mini-stats"><div><b>23</b><span>Books</span></div><div><b>129</b><span>Past papers</span></div><div><b>6</b><span>Exam sets</span></div></div>
   </div>
   <div class="auth-form"><div class="auth-card"><div class="brand-s"><img src="{{ asset('assets/img/logo.png') }}" alt="" width="54" height="52"><b style="font-family:var(--serif);font-size:1.5rem;color:var(--head)">WAKATA Admin</b></div><h1>Welcome back</h1><p class="lead">Sign in to manage the WAKATA website.</p>
-<form data-validate data-onsubmit="login" novalidate>
- <div class="field"><label for="email">Email address</label><input id="email" name="email" type="email" required autocomplete="username" value="grace@wakatastationers.com" placeholder="you@wakatastationers.com"><span class="err">Enter a valid email address.</span></div>
+<form method="POST" action="{{ route('admin.login.submit') }}" data-validate data-native novalidate>
+@csrf
+ <div class="field"><label for="email">Email address</label><input id="email" name="email" type="email" required autocomplete="username" value="{{ old('email') }}" placeholder="you@wakatastationers.com"><span class="err">Enter a valid email address.</span></div>
  <div class="field"><label for="password">Password</label><div class="pw" data-pw><input id="password" name="password" type="password" required minlength="6" autocomplete="current-password" placeholder="••••••••" ><button type="button" aria-label="Show password">@icon('eye')</button></div><span class="err">Enter at least 6 characters.</span></div>
  <div class="row-b"><label class="check"><input type="checkbox" name="remember" checked> Keep me signed in</label><a href="{{ route('admin.forgot-password') }}">Forgot password?</a></div>
  <button class="btn btn-primary btn-block" type="submit">Sign in</button>
 </form>
-<div class="demo-box"><b>Preview mode.</b> Any valid email and a password of 6 or more characters will sign you in. Real authentication (Laravel) comes with the backend.</div>
 <div class="foot"><a href="{{ route('site.home') }}">&larr; Back to the website</a></div></div></div>
 </div>
 @endsection

@@ -34,4 +34,4 @@ $groups = [
 <a class="sb-link{{ $on ? ' on' : '' }}" href="{{ route($it['route']) }}"{!! $on ? ' aria-current="page"' : '' !!}>@icon($it['icon'])<span>{{ $it['label'] }}</span>{!! empty($it['badge']) ? '' : '<span class="sb-badge" data-badge="' . e($it['badge']) . '"></span>' !!}{!! empty($it['ext']) ? '' : \App\Support\Icon::svg('external', 'sb-ext') !!}</a>
 @endforeach
 @endforeach
-</nav><div class="sb-foot"><span class="avatar" data-me-initials>JS</span><div><b data-me-name>Customer</b><small>Customer account</small></div></div></aside>
+</nav><div class="sb-foot"><span class="avatar" data-me-initials>{{ $authCustomer->initials ?? '' }}</span><div><b data-me-name>{{ $authCustomer->name ?? 'Customer' }}</b><small>Customer account</small></div></div></aside>

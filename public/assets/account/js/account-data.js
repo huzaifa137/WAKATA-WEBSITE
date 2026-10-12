@@ -7,7 +7,7 @@
    ========================================================== */
 window.AD = (function () {
   const WK = window.WK, NOW = Date.now(), DAY = 864e5, money = WK.money;
-  let user = {}; try { user = JSON.parse(localStorage.getItem('wk_user')) || {}; } catch (e) { }
+  const user = WK.user || {}; /* the signed-in customer, set by Laravel */
   const fresh = !!user.fresh;
   const ORDER_STATUS = { pending: { label: 'Pending', cls: 'b-warn' }, confirmed: { label: 'Confirmed', cls: 'b-info' }, processing: { label: 'Being prepared', cls: 'b-pur' }, ready: { label: 'Ready for pickup', cls: 'b-info' }, shipped: { label: 'Out for delivery', cls: 'b-pur' }, completed: { label: 'Completed', cls: 'b-ok' }, cancelled: { label: 'Cancelled', cls: 'b-mute' }, refunded: { label: 'Refunded', cls: 'b-bad' } };
   const PAY_STATUS = { paid: { label: 'Paid', cls: 'b-ok' }, pending: { label: 'Awaiting payment', cls: 'b-warn' }, failed: { label: 'Failed', cls: 'b-bad' }, refunded: { label: 'Refunded', cls: 'b-mute' } };

@@ -359,22 +359,27 @@
 
   /* ================= SETTINGS / PROFILE / AUTH ================= */
   P.settings = function () {
-    const t = $('#tfa'); if (t) { t.checked = localStorage.getItem('wk_2fa') === '1'; t.addEventListener('change', () => { try { t.checked ? localStorage.setItem('wk_2fa', '1') : localStorage.removeItem('wk_2fa'); } catch (e) { } toast(t.checked ? 'Two-step verification is on. You will be asked for a code at sign-in.' : 'Two-step verification is off.'); }); }
+    const t = $('#tfa'); if (!t) return;
+    t.addEventListener('change', () => {
+      const want = t.checked, token = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+      fetch(t.dataset.url, { method: 'POST', headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: want }) })
+        .then(r => { if (!r.ok) throw new Error('bad'); toast(want ? 'Two-step verification is on. You will be asked for a code at sign-in.' : 'Two-step verification is off.'); })
+        .catch(() => { t.checked = !want; toast('Could not update this setting. Please try again.', 'err'); });
+    });
   };
   P.profile = P.settings;
   P.verify = function () {
-    if (!sessionStorage.getItem('wk_pending') && !sessionStorage.getItem('wk_admin')) { location.replace('login.html'); return; }
     const ins = $$('.otp input'); ins[0].focus();
     ins.forEach((i, n) => { i.addEventListener('input', () => { i.value = i.value.replace(/\D/g, '').slice(0, 1); if (i.value && ins[n + 1]) ins[n + 1].focus(); }); i.addEventListener('keydown', e => { if (e.key === 'Backspace' && !i.value && ins[n - 1]) ins[n - 1].focus(); }); i.addEventListener('paste', e => { const d = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6); if (!d) return; e.preventDefault(); d.split('').forEach((c, k) => ins[k] && (ins[k].value = c)); (ins[Math.min(d.length, 5)]).focus(); }); });
-    $('#otpForm').addEventListener('submit', e => { e.preventDefault(); const code = ins.map(i => i.value).join(''); if (code.length < 6) { toast('Enter the 6-digit code.', 'err'); return; } const p = sessionStorage.getItem('wk_pending'); if (p) { sessionStorage.setItem('wk_admin', p); sessionStorage.removeItem('wk_pending'); } location.href = 'index.html'; });
-    $('#resend').addEventListener('click', () => toast('A new code has been sent (preview: use any 6 digits).'));
+    const form = $('#otpForm');
+    form.addEventListener('submit', e => { e.preventDefault(); const code = ins.map(i => i.value).join(''); if (code.length < 6) { toast('Enter the 6-digit code.', 'err'); return; } $('#otpCode').value = code; form.submit(); });
+    $('#resend').addEventListener('click', e => {
+      e.preventDefault(); const token = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+      fetch(e.currentTarget.dataset.url, { method: 'POST', headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' } })
+        .then(r => r.json().then(j => ({ ok: r.ok, j })))
+        .then(x => toast(x.j.message || 'Done.', x.ok ? undefined : 'err'))
+        .catch(() => toast('Could not send a new code. Please try again.', 'err'));
+    });
   };
-  window.ADM_HOOKS = {
-    login(f) { const em = f.elements.email.value.trim(), tm = AD.team.find(u => u.email === em.toLowerCase()), nm = tm ? tm.name : em.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), s = JSON.stringify({ name: nm, email: em }); if (localStorage.getItem('wk_2fa') === '1') { sessionStorage.setItem('wk_pending', s); location.href = 'verify.html'; } else { sessionStorage.setItem('wk_admin', s); location.href = 'index.html'; } },
-    forgot(f) { $('#fgForm').hidden = true; $('#fgSent').hidden = false; $('#fgMail').textContent = f.elements.email.value; },
-    reset() { toast('Password updated. Please sign in with your new password.'); setTimeout(() => location.href = 'login.html', 1000); },
-    unlock() { location.href = 'index.html'; }
-  };
-
   if (P[page]) P[page]();
 })();

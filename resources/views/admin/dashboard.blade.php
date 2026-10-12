@@ -4,7 +4,7 @@
 @section('page', 'dashboard')
 
 @section('content')
-<div class="pagehead"><div><h1>Dashboard</h1><p><span data-greet>Welcome</span>, <span data-me-name>admin</span>. <span data-today></span></p></div><div class="ph-actions"><div class="seg" id="rangeSeg" data-seg role="group" aria-label="Date range"><button type="button" data-v="7">7 days</button><button type="button" data-v="30" class="on">30 days</button><button type="button" data-v="90">90 days</button><button type="button" data-v="365">12 months</button></div>
+<div class="pagehead"><div><h1>Dashboard</h1><p><span data-greet>Welcome</span>, <span data-me-name>{{ $authAdmin->name ?? 'admin' }}</span>. <span data-today></span></p></div><div class="ph-actions"><div class="seg" id="rangeSeg" data-seg role="group" aria-label="Date range"><button type="button" data-v="7">7 days</button><button type="button" data-v="30" class="on">30 days</button><button type="button" data-v="90">90 days</button><button type="button" data-v="365">12 months</button></div>
 <button class="btn btn-line btn-sm" type="button" data-toast="Dashboard report exported (preview).">@icon('download')Export</button><a class="btn btn-primary btn-sm" href="{{ route('admin.book-form') }}">@icon('plus')Add book</a></div></div>
 <div class="kpis k6" id="kpis"></div>
 <div class="g12">

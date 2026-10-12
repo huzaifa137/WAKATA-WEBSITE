@@ -18,8 +18,11 @@ window.WK = {
     accountLibrary: @json(route('account.library')),
     accountOrders: @json(route('account.orders')),
     accountSaved: @json(route('account.saved')),
+    accountLogout: @json(route('account.logout')),
     adminLogin: @json(route('admin.login'))
   },
+  user: @json($wkUser ?? null),
+  csrf: @json(csrf_token()),
   contact: { wa: @json(config('wakata.whatsapp')), tel: @json(config('wakata.phone_tel')) }
 };
 WK.u = function (p) { p = (p || '').replace(/^\/+/, ''); return WK.base + (p ? '/' + p : ''); };

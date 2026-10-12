@@ -173,14 +173,5 @@
     const t = $('#tfa'); if (t) { t.checked = localStorage.getItem('wk_user_2fa') === '1'; t.addEventListener('change', () => { try { t.checked ? localStorage.setItem('wk_user_2fa', '1') : localStorage.removeItem('wk_user_2fa'); } catch (e) { } toast(t.checked ? 'Two-step verification turned on (preview).' : 'Two-step verification turned off.'); }); }
   };
 
-  /* ================= AUTH HOOKS ================= */
-  const nameFrom = e => e.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-  const nextUrl = () => { const n = new URLSearchParams(location.search).get('next'); return n && /^[a-z-]+\.html/.test(n) ? n : 'index.html'; };
-  window.ADM_HOOKS = {
-    login(f) { const em = f.elements.email.value.trim().toLowerCase(); localStorage.setItem('wk_user', JSON.stringify({ name: nameFrom(em), email: em, type: 'Teacher', school: 'Green Hill Secondary School', phone: '+256 772 123 456', fresh: false })); location.href = nextUrl(); },
-    register(f) { const g = n => f.elements[n] ? f.elements[n].value.trim() : ''; localStorage.setItem('wk_user', JSON.stringify({ name: g('name'), email: g('email').toLowerCase(), phone: g('phone'), type: g('type'), school: g('school'), fresh: true })); location.href = 'index.html'; },
-    forgot(f) { $('#fgForm').hidden = true; $('#fgSent').hidden = false; $('#fgMail').textContent = f.elements.email.value; },
-    reset() { toast('Password updated. Please sign in with your new password.'); setTimeout(() => location.href = 'login.html', 1000); }
-  };
   if (P[page]) P[page]();
 })();

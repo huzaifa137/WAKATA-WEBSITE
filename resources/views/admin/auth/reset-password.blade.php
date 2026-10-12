@@ -11,7 +11,8 @@
     <div class="mini-stats"><div><b>23</b><span>Books</span></div><div><b>129</b><span>Past papers</span></div><div><b>6</b><span>Exam sets</span></div></div>
   </div>
   <div class="auth-form"><div class="auth-card"><div class="brand-s"><img src="{{ asset('assets/img/logo.png') }}" alt="" width="54" height="52"><b style="font-family:var(--serif);font-size:1.5rem;color:var(--head)">WAKATA Admin</b></div><div class="auth-ico">@icon('lock')</div><h1>Choose a new password</h1><p class="lead">Use at least 8 characters with a mix of letters, numbers and a symbol.</p>
-<form data-validate data-onsubmit="reset" data-match="password,confirm" novalidate>
+<form method="POST" action="{{ route('admin.reset-password.update') }}" data-validate data-native data-match="password,confirm" novalidate>
+@csrf<input type="hidden" name="token" value="{{ $token }}"><input type="hidden" name="email" value="{{ $email }}">
  <div class="field"><label for="password">New password</label><div class="pw" data-pw><input id="password" name="password" type="password" required minlength="8" autocomplete="new-password" data-strength="str" placeholder="••••••••"><button type="button" aria-label="Show password">@icon('eye')</button></div><div class="strength" id="str" data-s="0"><i></i><i></i><i></i><i></i></div><span class="err">Use at least 8 characters.</span></div>
  <div class="field"><label for="confirm">Confirm new password</label><div class="pw" data-pw><input id="confirm" name="confirm" type="password" required minlength="8" autocomplete="new-password" placeholder="••••••••"><button type="button" aria-label="Show password">@icon('eye')</button></div><span class="err">Repeat the password.</span></div>
  <button class="btn btn-primary btn-block" type="submit">Update password</button></form>

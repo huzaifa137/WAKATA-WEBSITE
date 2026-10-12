@@ -8,11 +8,9 @@
   const $ = (s, r) => (r || document).querySelector(s), $$ = (s, r) => [...(r || document).querySelectorAll(s)];
   const AD = window.AD, ADC = window.ADC, WK = window.WK, page = document.body.dataset.page;
   const AUTH_PAGES = ['login', 'register', 'forgot', 'reset', '404'];
-  const AUTH_GUARD = true; /* set to false to open dashboard pages without signing in */
-  if (AUTH_GUARD && !AUTH_PAGES.includes(page) && !localStorage.getItem('wk_user')) { location.replace('login.html?next=' + encodeURIComponent(location.pathname.split('/').pop() + location.search)); window.ADM = null; return; }
   const ic = n => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${ADC.icons[n] || ''}</svg>`;
   const esc = AD.esc, qs = k => new URLSearchParams(location.search).get(k);
-  const me = (() => { try { return JSON.parse(localStorage.getItem('wk_user')) || {}; } catch (e) { return {}; } })();
+  const me = (window.WK && WK.user) || {}; /* set by Laravel (partials/account/auth-state) */
 
   /* ---------- toast ---------- */
   function toast(msg, type) {
@@ -127,6 +125,7 @@
     f.addEventListener('input', run); f.addEventListener('change', run); run();
   }
   function addTag(box, v) { v = (v || '').trim().replace(/,$/, ''); if (!v) return; const c = document.createElement('span'); c.className = 'chip on'; c.innerHTML = esc(v) + '<span class="x" role="button" aria-label="Remove">×</span><input type="hidden" name="' + (box.dataset.name || 'tags[]') + '" value="' + esc(v) + '">'; $('input:not([type=hidden])', box).before(c); }
+  window.addEventListener('pageshow', () => $$('form[data-native] [type=submit]').forEach(b => { b.disabled = false; })); /* re-enable after Back */
   function initForms() {
     $$('form[data-validate]').forEach(f => {
       f.setAttribute('novalidate', '');
@@ -135,6 +134,7 @@
         $$('[required]', f).forEach(i => { if (i.disabled || i.closest('[hidden]')) return; const bad = i.type === 'checkbox' ? !i.checked : (!i.value.trim() || !i.checkValidity()); const fl = i.closest('.field'); if (fl) fl.classList.toggle('bad', bad); if (bad && ok) { ok = false; i.focus(); } });
         if (f.dataset.match) { const [a, b] = f.dataset.match.split(','); if (f.elements[a].value !== f.elements[b].value) { f.elements[b].closest('.field').classList.add('bad'); $('.err', f.elements[b].closest('.field')).textContent = 'The passwords do not match.'; ok = false; } }
         if (!ok) { toast('Please fix the highlighted fields.', 'err'); return; }
+        if (f.hasAttribute('data-native')) { const sb = f.querySelector('[type=submit]'); if (sb) sb.disabled = true; f.submit(); return; } /* real server-side form (Laravel) */
         if (f.dataset.onsubmit && window.ADM_HOOKS && ADM_HOOKS[f.dataset.onsubmit]) { ADM_HOOKS[f.dataset.onsubmit](f); return; }
         toast(f.dataset.ok || 'Saved. This is a design preview, so nothing is stored yet.'); if (f.dataset.next) setTimeout(() => location.href = f.dataset.next, 900);
       });
@@ -198,7 +198,7 @@
       else if (e.target.closest('[data-close-drawer]')) closeDrawer();
       else if ((n = e.target.closest('[data-toast]'))) { if (n.tagName === 'A') e.preventDefault(); toast(n.dataset.toast); }
       else if ((n = e.target.closest('[data-confirm]'))) { e.preventDefault(); confirmBox({ title: n.dataset.confirm, text: n.dataset.text || 'This is a design preview, so nothing is changed yet.', ok: n.dataset.ok || 'Delete', danger: n.dataset.danger !== 'false', icon: n.dataset.icon, onOk: () => { toast(n.dataset.done || 'Done (preview only).'); if (n.dataset.then) setTimeout(() => location.href = n.dataset.then, 800); } }); }
-      else if (e.target.closest('[data-logout]')) { localStorage.removeItem('wk_user'); location.href = '../index.html'; }
+      else if (e.target.closest('[data-logout]')) { e.preventDefault(); const lf = $('#logoutForm'); if (lf) lf.submit(); }
       else if (e.target.closest('[data-lock]')) { location.href = 'locked.html'; }
       else if (e.target.closest('[data-print]')) { window.print(); }
       else if ((n = e.target.closest('[data-copy]'))) { try { navigator.clipboard.writeText(n.dataset.copy); } catch (er) { } toast('Copied to clipboard'); }
