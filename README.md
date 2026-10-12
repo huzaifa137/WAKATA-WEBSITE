@@ -1,49 +1,59 @@
-# WAKATA website: front-end (UI) prototype
+<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
-Open `index.html` in a browser. No build step, no install. Needs internet only for the Google Fonts
-(Source Serif 4 + Public Sans); it falls back to system fonts offline.
+<p align="center">
+<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
+<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
+</p>
 
-## Pages
-index, books, book (detail, `book.html?id=bio-uce-practical`), past-papers, exam-sets,
-holiday-packages, about, contact, cart (cart + checkout UI).
+## About Laravel
 
-## Structure
-- `assets/css/style.css`   all styles. Design tokens are at the top (`:root`); logo blue is `--blue`.
-- `assets/js/data.js`      sample catalogue (books, past papers, exam sets, holiday packages) and prices.
-- `assets/js/app.js`       rendering, filters, cart (localStorage), form validation, toasts.
-- `assets/js/enhance.js`   v2 polish layer: scroll progress, back to top, WhatsApp button, reveal, count-up, parallax, fly-to-cart, searchable dropdowns.
-- `assets/img/`            logo (blue + white versions), your sample covers and papers.
+Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
 
-## What changed in v2
-- Hero: the lined exercise-book background is replaced by a deep logo-blue stage with the logo's open-book shape as large translucent planes, a dot grid and a soft glow. The paper collage drifts slightly with the mouse. The bottom edge is cut on a slant to echo the logo.
-- Inner page headers use the same blue and book-plane treatment.
-- Hover effects, each area with its own: nav underline, button sweep, level tiles flood with blue, book covers swing open, past-paper sheets zoom with a sheen, packages grow a top bar and pop their ticks, exam-set stacks fan out, steps spin, info/value/quote cards lift, footer links slide. All hover effects are limited to devices with a mouse.
-- New: stats card (counts come from `data.js`), testimonials, scroll progress bar, condensing header, back-to-top button, WhatsApp chat button, scroll reveal, fly-to-cart animation with badge pop, card fade-in when filters change.
-- Reduced-motion settings are respected: movement is switched off.
+- [Simple, fast routing engine](https://laravel.com/docs/routing).
+- [Powerful dependency injection container](https://laravel.com/docs/container).
+- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
+- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
+- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
+- [Robust background job processing](https://laravel.com/docs/queues).
+- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
 
-## Replace before launch
-- WhatsApp number in `assets/js/enhance.js` (`wa.me/256700000000`) is a placeholder.
-- The ten testimonials on the home page (the scrolling "What teachers say" row) are sample text. Replace them with real quotes (and permission) from schools.
-- Phone, email and address (`+256 700 000 000`, `info@wakatastationers.com`) are placeholders.
-- All prices, page counts and descriptions in `data.js` are sample values.
-- Titles without a photo use a generated cover; swap in real covers via the `img` field.
-- Past papers without a photo use a generated sheet; add images via `realPaper` in `data.js`.
-- Checkout, forms and newsletter are UI only. Nothing is sent or charged.
+Laravel is accessible, powerful, and provides tools required for large, robust applications.
 
-## Moving to Laravel
-- Header, footer and page shell repeat in every file: turn them into a Blade layout (`@extends`/`@yield`).
-- Product cards are built in `app.js` (`bookCard`, `paperCard`, `setCard`, `packCard`). Port each to a Blade partial
-  and loop over Eloquent results; the CSS classes can stay as they are.
-- `data.js` maps one-to-one to future tables: books, past_papers (level, subject, paper, year, print_price, pdf_price),
-  exam_sets, holiday_packages, orders, order_items.
-- Cart: replace `localStorage` with a session or database cart behind the same add/remove/quantity actions.
+## Learning Laravel
 
-## v6 additions
-- **Testimonials marquee** (`index.html`, `.mq` in `style.css`, logic in `enhance.js`): ten cards flow right to left, pause on hover/touch, and have a Pause/Play button. With "reduce motion" on, the row becomes a normal swipeable strip. To add or remove a testimonial, edit the `<figure class="quote">` items inside `.mq-group`; the loop copies itself in JavaScript.
-- **Mobile app bar** (phones, 760px and below): bottom tabs for Home, Books, Papers, Cart (with live count) and More. "More" opens a bottom sheet with Exam sets, Holiday packages, About, Contact, WhatsApp and Call. Built in `enhance.js`, styled under "v6" in `style.css`, so no page markup needs to change.
+Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
 
-## Customer accounts and admin (added)
-- **Navbar sign-in**: every public page now has a Sign in menu (`assets/js/auth-nav.js`): Sign in, Create an account, and Admin sign in (`admin/login.html`). Once signed in it becomes a customer menu. Signed-in customers also get their details pre-filled on the cart page.
-- **Customer portal** (`account/`): dashboard, downloads and library (PDFs, printed items, sets and packages), orders and order tracking, invoices and printable receipts, saved items, addresses, help and support, profile and settings, plus login, register, forgot and reset password. Open `account/login.html`.
-- **Admin console** (`admin/`): see `admin/README.md`.
-- Both are front-end previews: sample data, no real authentication or storage. Customer session key `wk_user` (localStorage); admin session `wk_admin` (sessionStorage).
+If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+
+## Laravel Sponsors
+
+We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+
+### Premium Partners
+
+- **[Vehikl](https://vehikl.com)**
+- **[Tighten Co.](https://tighten.co)**
+- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
+- **[64 Robots](https://64robots.com)**
+- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
+- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
+- **[Redberry](https://redberry.international/laravel-development)**
+- **[Active Logic](https://activelogic.com)**
+
+## Contributing
+
+Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+
+## Code of Conduct
+
+In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+
+## Security Vulnerabilities
+
+If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+
+## License
+
+The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
