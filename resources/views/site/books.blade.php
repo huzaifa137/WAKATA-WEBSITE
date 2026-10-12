@@ -1,7 +1,7 @@
 @extends('layouts.site')
 
-@section('title')Books | WAKATA Stationers@endsection
-@section('page')books@endsection
+@section('title', 'Books | WAKATA Stationers')
+@section('page', 'books')
 
 @section('content')
 <section class="page-head"><div class="wrap"><div class="crumbs"><a href="{{ route('site.home') }}">Home</a><span>/</span>Books</div><h1>Books and workbooks</h1><p>Practical workbooks, textbooks and revision guides for primary and secondary schools.</p></div></section><div class="wrap shop"><aside class="side" aria-label="Filters"><div id="facets"></div></aside><section aria-label="Results"><div class="tools"><span class="found" id="found" aria-live="polite"></span>

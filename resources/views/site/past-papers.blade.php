@@ -1,7 +1,7 @@
 @extends('layouts.site')
 
-@section('title')Past papers | WAKATA Stationers@endsection
-@section('page')papers@endsection
+@section('title', 'Past papers | WAKATA Stationers')
+@section('page', 'papers')
 
 @section('content')
 <section class="page-head"><div class="wrap"><div class="crumbs"><a href="{{ route('site.home') }}">Home</a><span>/</span>Past papers</div><h1>Past papers</h1><p>Real WAKATA mock papers from earlier series. Buy a printed copy for the classroom, or download a PDF today.</p></div></section><div class="wrap shop"><aside class="side" aria-label="Filters"><div id="facets"></div></aside><section aria-label="Results"><div class="tools"><span class="found" id="found" aria-live="polite"></span>

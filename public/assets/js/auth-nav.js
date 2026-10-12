@@ -26,13 +26,13 @@
     var name = user.name || user.email.split('@')[0], ini = name.split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w[0]; }).join('').toUpperCase();
     html = '<button class="acct-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="My account"><span class="acct-av">' + esc(ini) + '</span><span class="acct-lbl">Hi, ' + esc(name.split(/\s+/)[0]) + '</span></button>' +
       '<div class="acct-menu" role="menu"><div class="acct-h"><span class="acct-av lg">' + esc(ini) + '</span><span><b>' + esc(name) + '</b><span>' + esc(user.email) + '</span></span></div>' +
-      '<a role="menuitem" href="' + WK.u('account/index.html') + '">' + I(P.grid) + 'My dashboard</a><a role="menuitem" href="' + WK.u('account/library.html') + '">' + I(P.dl) + 'My downloads</a><a role="menuitem" href="' + WK.u('account/orders.html') + '">' + I(P.box) + 'My orders</a><a role="menuitem" href="' + WK.u('account/saved.html') + '">' + I(P.heart) + 'Saved items</a><hr>' +
+      '<a role="menuitem" href="' + WK.r.account + '">' + I(P.grid) + 'My dashboard</a><a role="menuitem" href="' + WK.r.accountLibrary + '">' + I(P.dl) + 'My downloads</a><a role="menuitem" href="' + WK.r.accountOrders + '">' + I(P.box) + 'My orders</a><a role="menuitem" href="' + WK.r.accountSaved + '">' + I(P.heart) + 'Saved items</a><hr>' +
       '<button role="menuitem" type="button" data-out>' + I(P.out) + 'Sign out</button></div>';
   } else {
     html = '<button class="acct-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Sign in or create an account">' + I(P.user) + '<span class="acct-lbl">Sign in</span></button>' +
       '<div class="acct-menu" role="menu"><div class="acct-h solo"><span><b>Welcome to WAKATA</b><span>Sign in to download your PDFs and follow your orders.</span></span></div>' +
-      '<a class="acct-primary" role="menuitem" href="' + WK.u('account/login.html') + '">Sign in</a><a class="acct-line" role="menuitem" href="' + WK.u('account/register.html') + '">Create an account</a><hr>' +
-      '<a class="acct-admin" role="menuitem" href="' + WK.u('admin/login.html') + '">' + I(P.shield) + '<span><b>Admin sign in</b><small>For WAKATA staff only</small></span></a></div>';
+      '<a class="acct-primary" role="menuitem" href="' + WK.r.accountLogin + '">Sign in</a><a class="acct-line" role="menuitem" href="' + WK.r.accountRegister + '">Create an account</a><hr>' +
+      '<a class="acct-admin" role="menuitem" href="' + WK.r.adminLogin + '">' + I(P.shield) + '<span><b>Admin sign in</b><small>For WAKATA staff only</small></span></a></div>';
   }
   wrap.innerHTML = html;
   tools.insertBefore(wrap, tools.querySelector('.cart-btn') || tools.firstChild);

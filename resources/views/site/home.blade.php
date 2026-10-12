@@ -1,7 +1,7 @@
 @extends('layouts.site')
 
-@section('title')WAKATA Stationers | Books, past papers and mock examinations@endsection
-@section('page')home@endsection
+@section('title', 'WAKATA Stationers | Books, past papers and mock examinations')
+@section('page', 'home')
 
 @section('content')
 

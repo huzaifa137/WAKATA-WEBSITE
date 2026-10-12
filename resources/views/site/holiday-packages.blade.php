@@ -1,7 +1,7 @@
 @extends('layouts.site')
 
-@section('title')Holiday packages | WAKATA Stationers@endsection
-@section('page')packages@endsection
+@section('title', 'Holiday packages | WAKATA Stationers')
+@section('page', 'packages')
 
 @section('content')
 <section class="page-head"><div class="wrap"><div class="crumbs"><a href="{{ route('site.home') }}">Home</a><span>/</span>Holiday packages</div><h1>Holiday packages</h1><p>Workbooks, revision tests and mock papers in one bundle, so learning carries on while school is out.</p></div></section><div class="wrap" style="padding-block:2.4rem 3rem"><div class="tabs" id="tabs" role="group" aria-label="Filter by level"></div><div class="grid grid-pk" id="grid" style="padding-top:.8rem"></div></div><section class="sec sec-white" id="faq"><div class="wrap">

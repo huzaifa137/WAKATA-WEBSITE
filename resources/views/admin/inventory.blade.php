@@ -1,0 +1,13 @@
+@extends('layouts.admin')
+
+@section('title', 'Inventory')
+@section('page', 'inventory')
+
+@section('content')
+<div class="pagehead"><div><h1>Inventory</h1><p>Printed stock for books, papers, exam sets and packages. PDFs are unlimited.</p></div><div class="ph-actions"><button class="btn btn-line btn-sm" type="button" data-toast="Reprint list exported (preview).">@icon('print')Reprint list</button></div></div>
+<div class="kpis" id="invStats"></div><div class="g12"><div class="c4"><section class="card "><div class="card-h"><div><h2>Stock by type</h2><span class="sub">Units on hand</span></div></div><div class="card-b"><div id="chStock"></div></div></section></div><div class="c8"><section class="card "><div class="card-h"><div><h2>Stock movement</h2><span class="sub">Last 10 weeks: printed or received against sold</span></div></div><div class="card-b"><div id="chMove"></div></div></section></div><div class="c12"><div id="tbl"></div></div></div>
+@endsection
+
+@push('modals')
+<div class="mback" id="adjModal" role="dialog" aria-modal="true" aria-labelledby="adjModalT"><div class="modal sm"><div class="modal-h"><h2 id="adjModalT">Adjust stock</h2><button class="btn btn-ic" type="button" data-close aria-label="Close">@icon('x')</button></div><div class="modal-b"><p style="margin-top:0"><b id="adjName"></b><br><span class="muted sm">Currently <b id="adjCur"></b> on hand</span></p><div class="field "><label for="at">Adjustment</label><select id="at" name="at" ><option value="add">Add stock (received or printed)</option><option value="remove">Remove stock (damaged or lost)</option><option value="set">Set to an exact number</option></select></div><div class="field "><label for="aq">Quantity</label><input id="aq" name="aq" type="number" value="0" placeholder="" ></div><div class="field "><label for="ar">Reason</label><select id="ar" name="ar" ><option value="print">New print run</option><option value="count">Stock count correction</option><option value="damage">Damaged</option><option value="return">Customer return</option><option value="other">Other</option></select></div><div class="field "><label for="an">Note (optional)</label><input id="an" name="an" type="text" value="" placeholder="e.g. Reprint batch 3" ></div></div><div class="modal-f"><button class="btn btn-line" type="button" data-close>Cancel</button><button class="btn btn-primary" type="button" data-close data-toast="Stock adjusted (preview).">Save adjustment</button></div></div></div>
+@endpush

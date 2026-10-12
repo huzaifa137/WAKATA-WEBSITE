@@ -11,7 +11,14 @@ window.WK = {
     packages: @json(route('site.packages')),
     about: @json(route('site.about')),
     contact: @json(route('site.contact')),
-    cart: @json(route('site.cart'))
+    cart: @json(route('site.cart')),
+    account: @json(route('account.dashboard')),
+    accountLogin: @json(route('account.login')),
+    accountRegister: @json(route('account.register')),
+    accountLibrary: @json(route('account.library')),
+    accountOrders: @json(route('account.orders')),
+    accountSaved: @json(route('account.saved')),
+    adminLogin: @json(route('admin.login'))
   },
   contact: { wa: @json(config('wakata.whatsapp')), tel: @json(config('wakata.phone_tel')) }
 };

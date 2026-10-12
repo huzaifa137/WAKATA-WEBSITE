@@ -1,7 +1,7 @@
 @extends('layouts.site')
 
-@section('title')Book | WAKATA Stationers@endsection
-@section('page')detail@endsection
+@section('title', 'Book | WAKATA Stationers')
+@section('page', 'detail')
 
 @section('content')
 

@@ -1,7 +1,7 @@
 @extends('layouts.site')
 
-@section('title')Cart and checkout | WAKATA Stationers@endsection
-@section('page')cartPage@endsection
+@section('title', 'Cart and checkout | WAKATA Stationers')
+@section('page', 'cartPage')
 
 @section('content')
 <section class="page-head"><div class="wrap"><div class="crumbs"><a href="{{ route('site.home') }}">Home</a><span>/</span>Cart</div><h1>Your cart</h1><p>Review your items, choose how you want to receive them and pay.</p></div></section>

@@ -1,7 +1,7 @@
 @extends('layouts.site')
 
-@section('title')Contact | WAKATA Stationers@endsection
-@section('page')contact@endsection
+@section('title', 'Contact | WAKATA Stationers')
+@section('page', 'contact')
 
 @section('content')
 <section class="page-head"><div class="wrap"><div class="crumbs"><a href="{{ route('site.home') }}">Home</a><span>/</span>Contact</div><h1>Contact us</h1><p>Questions about an order, a bulk quotation or a mock series? Call, write or visit us.</p></div></section>

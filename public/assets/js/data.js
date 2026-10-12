@@ -3,7 +3,8 @@
    Replace with API / Laravel (Eloquent -> JSON or Blade loops)
    once the backend exists. Prices are in UGX and are SAMPLE values.
    ========================================================== */
-window.WK = (function () {
+/* Merge into the globals Laravel already set (WK.base, WK.r, WK.u, WK.contact) instead of replacing them. */
+window.WK = Object.assign(window.WK || {}, (function () {
   const LEVELS = {
     ple:  { label: 'Primary (PLE)',    short: 'PLE',  book: 'primary' },
     uce:  { label: 'O-Level (UCE)',    short: 'UCE',  book: 'o' },
@@ -110,4 +111,4 @@ window.WK = (function () {
   const byId = (arr, id) => arr.find(x => x.id === id);
 
   return { LEVELS, BOOK_LEVELS, SUBJECTS, books, papers, sets, packages, money, byId, PAPER_IMG };
-})();
+})());

@@ -1,7 +1,7 @@
 @extends('layouts.site')
 
-@section('title')About | WAKATA Stationers@endsection
-@section('page')about@endsection
+@section('title', 'About | WAKATA Stationers')
+@section('page', 'about')
 
 @section('content')
 <section class="page-head"><div class="wrap"><div class="crumbs"><a href="{{ route('site.home') }}">Home</a><span>/</span>About</div><h1>About WAKATA</h1><p>The Wakiso Kampala Teachers' Association brings teachers together to make good assessment affordable for every learner.</p></div></section>
