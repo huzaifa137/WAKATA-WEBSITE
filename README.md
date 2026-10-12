@@ -41,3 +41,9 @@ holiday-packages, about, contact, cart (cart + checkout UI).
 ## v6 additions
 - **Testimonials marquee** (`index.html`, `.mq` in `style.css`, logic in `enhance.js`): ten cards flow right to left, pause on hover/touch, and have a Pause/Play button. With "reduce motion" on, the row becomes a normal swipeable strip. To add or remove a testimonial, edit the `<figure class="quote">` items inside `.mq-group`; the loop copies itself in JavaScript.
 - **Mobile app bar** (phones, 760px and below): bottom tabs for Home, Books, Papers, Cart (with live count) and More. "More" opens a bottom sheet with Exam sets, Holiday packages, About, Contact, WhatsApp and Call. Built in `enhance.js`, styled under "v6" in `style.css`, so no page markup needs to change.
+
+## Customer accounts and admin (added)
+- **Navbar sign-in**: every public page now has a Sign in menu (`assets/js/auth-nav.js`): Sign in, Create an account, and Admin sign in (`admin/login.html`). Once signed in it becomes a customer menu. Signed-in customers also get their details pre-filled on the cart page.
+- **Customer portal** (`account/`): dashboard, downloads and library (PDFs, printed items, sets and packages), orders and order tracking, invoices and printable receipts, saved items, addresses, help and support, profile and settings, plus login, register, forgot and reset password. Open `account/login.html`.
+- **Admin console** (`admin/`): see `admin/README.md`.
+- Both are front-end previews: sample data, no real authentication or storage. Customer session key `wk_user` (localStorage); admin session `wk_admin` (sessionStorage).
