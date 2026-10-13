@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Book;
+use App\Support\Cart;
 use Illuminate\Http\Request;
 
 class SiteController extends Controller
@@ -60,6 +61,9 @@ class SiteController extends Controller
 
     public function cart()
     {
-        return view('site.cart');
+        // The cart page starts from the server's priced cart, so it never flashes empty and never shows stale prices.
+        return response()
+            ->view('site.cart', ['cart' => Cart::current()->priced()])
+            ->header('Cache-Control', 'no-store, max-age=0');
     }
 }

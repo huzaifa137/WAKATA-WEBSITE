@@ -1,7 +1,8 @@
 /* ==========================================================
    WAKATA front end — vanilla JS (no build step, no dependencies)
    Catalogue data comes from the database (WK.catalogue, see data.js).
-   Cart is stored in localStorage until module 5 moves it to the server.
+   The cart lives on the server (session). Prices and totals are always worked out by Laravel; this file only
+   shows them and sends the shopper's choices (see App\Support\Cart and CheckoutController).
    ========================================================== */
 (function () {
   'use strict';
@@ -23,28 +24,53 @@
   };
   const ic = n => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${ICON[n]}</svg>`;
 
-  /* ---------------- Cart ---------------- */
-  const KEY = 'wakata_cart_v1';
-  const cart = {
-    get() { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { return []; } },
-    set(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) { } badge(); },
-    add(type, id, fmt, qty) {
-      const c = this.get(); const k = [type, id, fmt || ''].join(':');
-      const f = c.find(i => i.k === k);
-      if (f) f.qty += qty; else c.push({ k, type, id, fmt: fmt || null, qty });
-      this.set(c);
-    },
-    count() { return this.get().reduce((n, i) => n + i.qty, 0); }
-  };
-  function badge() { const n = cart.count(); $$('.cart-count').forEach(b => { b.textContent = n || ''; b.dataset.n = n; }); }
+  /* ---------------- Cart (server session) ---------------- */
+  const cartState = { count: (D.cart && D.cart.count) || 0 };
+  function badge() { const n = cartState.count; $$('.cart-count').forEach(b => { b.textContent = n || ''; b.dataset.n = n; }); }
 
-  function info(i) {
-    if (i.type === 'book') { const b = D.byId(D.books, i.id); if (!b) return null; return { t: b.title, sub: D.BOOK_LEVELS[b.level] + ' ' + b.subject, price: b.price, thumb: cover(b), phys: true, href: WK.r.book + '?id=' + b.id }; }
-    if (i.type === 'paper') { const p = D.byId(D.papers, i.id); if (!p) return null; return { t: p.title + ' ' + p.year, sub: D.LEVELS[p.level].short + ' past paper, ' + (i.fmt === 'pdf' ? 'PDF download' : 'printed copy'), price: i.fmt === 'pdf' ? p.pdf : p.print, thumb: p.img ? `<img src="${p.img}" alt="">` : genCv(p.subject), phys: i.fmt !== 'pdf', href: WK.r.papers }; }
-    if (i.type === 'set') { const s = D.byId(D.sets, i.id); if (!s) return null; return { t: s.title, sub: s.papers + ' papers, printed set', price: s.price, thumb: `<img src="${D.PAPER_IMG}${s.preview[0]}" alt="">`, phys: true, href: WK.r.sets }; }
-    if (i.type === 'pack') { const k = D.byId(D.packages, i.id); if (!k) return null; return { t: k.name, sub: 'Holiday package for ' + k.for, price: k.price, thumb: genCv('Holiday'), phys: true, href: WK.r.packages }; }
-    return null;
+  /* One place that talks to Laravel. Always resolves: { ok, status, data } (data.message is safe to show). */
+  async function api(method, url, body) {
+    try {
+      const res = await fetch(url, {
+        method, credentials: 'same-origin',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': D.csrf },
+        body: body ? JSON.stringify(body) : undefined
+      });
+      let data = {}; try { data = await res.json(); } catch (e) { }
+      if (res.status === 419) data.message = 'Your session expired. Please refresh the page and try again.';
+      else if (res.status === 429) data.message = 'Too many requests. Please wait a moment and try again.';
+      else if (!res.ok && !data.message) data.message = 'Something went wrong. Please try again.';
+      return { ok: res.ok, status: res.status, data };
+    } catch (e) {
+      return { ok: false, status: 0, data: { message: 'No connection. Check your internet and try again.' } };
+    }
   }
+  const cart = {
+    async add(items) {
+      const r = await api('POST', D.r.cartAdd, { items });
+      if (typeof r.data.count === 'number') { cartState.count = r.data.count; badge(); }
+      return r;
+    }
+  };
+  const cartLink = 'Added to your cart. <a href="' + WK.r.cart + '">View cart</a>';
+
+  /* Carts saved in this browser before the cart moved to the server are moved over once. */
+  (function importOldCart() {
+    const KEY = 'wakata_cart_v1'; let old;
+    try { old = JSON.parse(localStorage.getItem(KEY)); localStorage.removeItem(KEY); } catch (e) { return; }
+    if (!Array.isArray(old) || !old.length) return;
+    const items = old.slice(0, 40).map(i => ({ type: i.type, id: i.id, fmt: i.fmt, qty: i.qty }));
+    cart.add(items).then(r => { if (!r.ok && r.status === 0) { try { localStorage.setItem(KEY, JSON.stringify(old)); } catch (e) { } } });
+  })();
+
+  /* Thumbnail and link for a cart line (the server supplies title, description and price). */
+  function lineThumb(l) {
+    if (l.type === 'book') { const b = D.byId(D.books, l.id); return b ? cover(b) : genCv('Mathematics'); }
+    if (l.type === 'paper') { const p = D.byId(D.papers, l.id); return p && p.img ? `<img src="${p.img}" alt="">` : genCv(p ? p.subject : 'Mathematics'); }
+    if (l.type === 'set') { const s = D.byId(D.sets, l.id); return s && s.preview && s.preview[0] ? `<img src="${D.PAPER_IMG}${s.preview[0]}" alt="">` : genCv('Mathematics'); }
+    return genCv('Holiday');
+  }
+  const lineHref = l => l.type === 'book' ? WK.r.book + '?id=' + encodeURIComponent(l.id) : l.type === 'paper' ? WK.r.papers : l.type === 'set' ? WK.r.sets : WK.r.packages;
   const genCv = s => { const c = D.SUBJECTS[s] || D.SUBJECTS.Mathematics; return `<div class="cv" style="--c1:${c[0]};--c2:${c[1]};--c3:${c[2]}"><span class="sj">${esc(s)}</span></div>`; };
 
   /* ---------------- Toast ---------------- */
@@ -183,8 +209,9 @@
     const q = $('#d-qty');
     $('#q-minus').onclick = () => q.value = Math.max(1, +q.value - 1);
     $('#q-plus').onclick = () => q.value = Math.min(99, +q.value + 1);
-    $('#d-add').onclick = () => { cart.add('book', b.id, null, Math.max(1, +q.value || 1)); toast('Added to your cart. <a href="' + WK.r.cart + '">View cart</a>'); };
-    $('#d-buy').onclick = () => { cart.add('book', b.id, null, Math.max(1, +q.value || 1)); location.href = WK.r.cart; };
+    const qty = () => Math.max(1, Math.min(99, +q.value || 1));
+    $('#d-add').onclick = async () => { const r = await cart.add([{ type: 'book', id: b.id, qty: qty() }]); toast(r.ok ? cartLink : esc(r.data.message)); };
+    $('#d-buy').onclick = async () => { const r = await cart.add([{ type: 'book', id: b.id, qty: qty() }]); if (r.ok) location.href = WK.r.cart; else toast(esc(r.data.message)); };
     const rel = D.books.filter(x => x.id !== b.id && (x.subject === b.subject || x.level === b.level)).sort((x, y) => (y.subject === b.subject) - (x.subject === b.subject)).slice(0, 4);
     $('#d-related').innerHTML = rel.map(bookCard).join('');
   }
@@ -226,36 +253,73 @@
 
   /* ---------------- Page: Cart + checkout ---------------- */
   function cartPage() {
-    const list = $('#lines'), sumEl = $('#summary'), form = $('#checkout');
+    const list = $('#lines'), sumEl = $('#summary'), form = $('#checkout'), submit = $('button[type=submit]', form);
+    let state = D.cart && D.cart.lines ? D.cart : { lines: [], count: 0, subtotal: 0, physical: false };
+    const deliveryOf = () => { const r = $('input[name=delivery]:checked'); return r ? r.value : 'pickup'; };
+
     function draw() {
-      const items = cart.get().map(i => ({ i, d: info(i) })).filter(x => x.d);
-      $('#cart-wrap').hidden = !items.length; $('#cart-empty').hidden = !!items.length;
-      list.innerHTML = items.map(({ i, d }) => `<div class="line"><div class="mini">${d.thumb}</div>
-        <div><h3><a href="${d.href}">${esc(d.t)}</a></h3><div class="sub">${esc(d.sub)}</div><button class="rm" data-rm="${i.k}" type="button">Remove</button></div>
-        <div class="right"><span class="price">${D.money(d.price * i.qty)}</span><div class="qty" role="group" aria-label="Quantity">
-        <button type="button" data-q="-1" data-k="${i.k}" aria-label="Decrease quantity">&minus;</button><input value="${i.qty}" readonly aria-label="Quantity"><button type="button" data-q="1" data-k="${i.k}" aria-label="Increase quantity">+</button></div></div></div>`).join('');
-      const sub = items.reduce((n, { i, d }) => n + d.price * i.qty, 0), phys = items.some(x => x.d.phys);
+      const lines = state.lines, phys = !!state.physical;
+      $('#cart-wrap').hidden = !lines.length; $('#cart-empty').hidden = !!lines.length;
+      list.innerHTML = lines.map(l => `<div class="line"><div class="mini">${lineThumb(l)}</div>
+        <div><h3><a href="${lineHref(l)}">${esc(l.title)}</a></h3><div class="sub">${esc(l.sub)}</div><button class="rm" data-rm="${esc(l.k)}" type="button">Remove</button></div>
+        <div class="right"><span class="price">${D.money(l.line)}</span><div class="qty" role="group" aria-label="Quantity">
+        <button type="button" data-q="-1" data-k="${esc(l.k)}" aria-label="Decrease quantity">&minus;</button><input value="${l.qty}" readonly aria-label="Quantity"><button type="button" data-q="1" data-k="${esc(l.k)}" aria-label="Increase quantity">+</button></div></div></div>`).join('');
       $('#delivery-box').hidden = !phys;
-      const dv = phys ? +($('input[name=delivery]:checked') || { value: 0 }).value : 0;
-      $('#addr-field').hidden = !phys || dv === 0;
-      sumEl.innerHTML = `<div class="sum"><span>Subtotal</span><span>${D.money(sub)}</span></div><div class="sum"><span>Delivery</span><span>${phys ? (dv ? D.money(dv) : 'Free pickup') : 'Not needed (digital)'}</span></div><div class="sum total"><span>Total</span><span>${D.money(sub + dv)}</span></div>`;
-      badge();
+      const dv = phys ? ((D.shop.delivery[deliveryOf()] || {}).fee || 0) : 0, pickup = deliveryOf() === 'pickup';
+      $('#addr-field').hidden = !phys || pickup;
+      /* Cash is only possible when the customer collects from the shop. */
+      const cash = $('input[name=pay][value=cash]'), cashOk = phys && pickup;
+      if (cash) { cash.closest('.radio').style.display = cashOk ? '' : 'none'; if (!cashOk && cash.checked) cash.checked = false; }
+      sumEl.innerHTML = `<div class="sum"><span>Subtotal</span><span>${D.money(state.subtotal)}</span></div><div class="sum"><span>Delivery</span><span>${phys ? (dv ? D.money(dv) : 'Free pickup') : 'Not needed (digital)'}</span></div><div class="sum total"><span>Total</span><span>${D.money(state.subtotal + dv)}</span></div>`;
+      cartState.count = state.count; badge();
     }
-    list.addEventListener('click', e => {
-      const c = cart.get();
-      const rm = e.target.closest('[data-rm]'), q = e.target.closest('[data-q]');
-      if (rm) cart.set(c.filter(i => i.k !== rm.dataset.rm));
-      if (q) { const it = c.find(i => i.k === q.dataset.k); it.qty = Math.max(1, Math.min(99, it.qty + +q.dataset.q)); cart.set(c); }
+    function apply(r, quiet) {
+      if (r.data && r.data.cart) state = r.data.cart;
+      if (r.data && r.data.cart && r.data.cart.removed > 0 && !quiet) toast('Some items are no longer available and were removed from your cart.');
       draw();
+    }
+    async function change(method, body, url) {
+      const r = await api(method, url, body);
+      if (r.ok) apply(r); else { toast(esc(r.data.message)); }
+    }
+
+    list.addEventListener('click', e => {
+      const rm = e.target.closest('[data-rm]'), q = e.target.closest('[data-q]');
+      if (rm) change('DELETE', { k: rm.dataset.rm }, D.r.cartRemove);
+      if (q) { const l = state.lines.find(x => x.k === q.dataset.k); if (l) change('PATCH', { k: l.k, qty: Math.max(1, Math.min(99, l.qty + +q.dataset.q)) }, D.r.cartUpdate); }
     });
     form.addEventListener('change', draw);
-    $('#clear').addEventListener('click', () => { cart.set([]); draw(); });
-    form.addEventListener('submit', e => {
+    $('#clear').addEventListener('click', () => change('DELETE', null, D.r.cartClear));
+
+    /* Server-side problems go back onto the matching field, in the same style as the browser checks. */
+    function showErrors(errors) {
+      const map = { name: 'o-name', phone: 'o-phone', email: 'o-email', address: 'o-addr' }; let first = null, other = null;
+      Object.keys(errors).forEach(k => {
+        const el = map[k] && document.getElementById(map[k]), f = el && el.closest('.field');
+        if (f && !f.hidden) { f.classList.add('bad'); const er = $('.err', f); if (er) { if (!er.dataset.def) er.dataset.def = er.textContent; er.textContent = errors[k][0]; } first = first || f; }
+        else other = other || errors[k][0];
+      });
+      if (first) first.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      if (other) toast(esc(other));
+    }
+
+    form.addEventListener('submit', async e => {
       e.preventDefault();
+      if (submit.disabled) return;
       if (!validate(form)) { const b = $('.field.bad', form); if (b) b.scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
-      $('#ref').textContent = 'WK-' + Math.random().toString(36).slice(2, 8).toUpperCase();
-      $('#pay-name').textContent = $('input[name=pay]:checked').dataset.name;
-      $('#modal').classList.add('open'); $('#modal .btn').focus(); cart.set([]);
+      const body = { name: $('#o-name').value, phone: $('#o-phone').value, email: $('#o-email').value, pay: $('input[name=pay]:checked').value };
+      if (state.physical) { body.delivery = deliveryOf(); body.address = $('#o-addr').value; }
+      const label = submit.textContent; submit.disabled = true; submit.textContent = 'Placing your order...';
+      const r = await api('POST', D.r.checkout, body);
+      submit.disabled = false; submit.textContent = label;
+      if (r.ok) {
+        $('#ref').textContent = r.data.ref; $('#pay-name').textContent = r.data.payName; $('#ref-email').textContent = body.email;
+        state = r.data.cart; draw();
+        $('#modal').classList.add('open'); $('#modal .btn').focus();
+        return;
+      }
+      if (r.data.cart) apply(r, true);
+      if (r.data.errors) showErrors(r.data.errors); else toast(esc(r.data.message));
     });
     $('#modal .btn').addEventListener('click', () => { location.href = WK.r.home; });
     draw();
@@ -269,6 +333,7 @@
       let bad = i.required && !i.value.trim();
       if (!bad && i.type === 'email' && i.value && !/^\S+@\S+\.\S+$/.test(i.value)) bad = true;
       if (!bad && i.type === 'tel' && i.value && i.value.replace(/\D/g, '').length < 9) bad = true;
+      const er = $('.err', f); if (er && er.dataset.def) er.textContent = er.dataset.def;
       f.classList.toggle('bad', bad); if (bad) ok = false;
     });
     const pay = $$('input[name=pay]', form); if (pay.length && !pay.some(r => r.checked)) { ok = false; toast('Choose a payment method to continue.'); }
@@ -286,12 +351,16 @@
   /* ---------------- Global events ---------------- */
   document.addEventListener('click', e => {
     const a = e.target.closest('[data-add]');
-    if (a) {
+    if (a && !a.dataset.busy) {
       const type = a.dataset.type, id = a.dataset.id; let fmt = null;
       if (type === 'paper') { const r = a.closest('.pp').querySelector('input[data-fmt]:checked'); fmt = r ? r.value : 'print'; }
-      cart.add(type, id, fmt, 1);
-      toast('Added to your cart. <a href="' + WK.r.cart + '">View cart</a>');
-      if (a.classList.contains('add')) { const o = a.innerHTML; a.classList.add('done'); a.innerHTML = ic('check') + 'Added'; setTimeout(() => { a.classList.remove('done'); a.innerHTML = o; }, 1400); }
+      a.dataset.busy = '1';
+      cart.add([{ type, id, fmt, qty: 1 }]).then(r => {
+        delete a.dataset.busy;
+        if (!r.ok) { toast(esc(r.data.message)); return; }
+        toast(cartLink);
+        if (a.classList.contains('add')) { const o = a.innerHTML; a.classList.add('done'); a.innerHTML = ic('check') + 'Added'; setTimeout(() => { a.classList.remove('done'); a.innerHTML = o; }, 1400); }
+      });
     }
     if (e.target.closest('[data-noop]')) e.preventDefault();
     const bg = e.target.closest('#burger'); if (bg) { const n = $('#nav'); const o = n.classList.toggle('open'); bg.setAttribute('aria-expanded', o); }

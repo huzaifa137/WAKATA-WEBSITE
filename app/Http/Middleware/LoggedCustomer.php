@@ -2,8 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\Customer;
-use App\Support\RememberLogin;
+use App\Support\CustomerSession;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\View;
@@ -14,7 +13,7 @@ class LoggedCustomer
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $customer = $this->resolve($request);
+        $customer = CustomerSession::resolve($request);
 
         if (! $customer) {
             $request->session()->forget('LoggedCustomer');
@@ -38,21 +37,5 @@ class LoggedCustomer
         $response->headers->set('Pragma', 'no-cache');
 
         return $response;
-    }
-
-    private function resolve(Request $request): ?Customer
-    {
-        $id = $request->session()->get('LoggedCustomer');
-        $customer = $id ? Customer::find($id) : null;
-
-        if (! $customer) {
-            $customer = RememberLogin::restore(Customer::class, 'wk_customer_remember', $request);
-            if ($customer) {
-                $request->session()->regenerate();
-                $request->session()->put('LoggedCustomer', $customer->id);
-            }
-        }
-
-        return $customer && $customer->isActive() ? $customer : null;
     }
 }

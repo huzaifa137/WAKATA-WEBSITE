@@ -12,25 +12,25 @@
     <form class="panel" id="checkout" novalidate>
       <h2>Order summary</h2><div id="summary"></div>
       <div id="delivery-box" style="margin-top:1.2rem"><h2>Delivery</h2><div class="radios">
-        <label class="radio"><input type="radio" name="delivery" value="0" checked><span><b>Pick up from our shop</b><small>Ready within one working day</small></span><em>Free</em></label>
-        <label class="radio"><input type="radio" name="delivery" value="8000"><span><b>Kampala and Wakiso</b><small>1 to 2 days</small></span><em>UGX 8,000</em></label>
-        <label class="radio"><input type="radio" name="delivery" value="15000"><span><b>Upcountry courier</b><small>2 to 4 days</small></span><em>UGX 15,000</em></label></div></div>
+        @foreach (collect(config('wakata.delivery'))->except('email') as $key => $d)
+        <label class="radio"><input type="radio" name="delivery" value="{{ $key }}"{{ $loop->first ? ' checked' : '' }}><span><b>{{ $d['label'] }}</b><small>{{ $d['eta'] }}</small></span><em>{{ $d['fee'] ? 'UGX ' . number_format($d['fee']) : 'Free' }}</em></label>
+        @endforeach</div></div>
       <h2 style="margin-top:1.2rem">Your details</h2>
-      <div class="field"><label for="o-name">Full name</label><input id="o-name" required autocomplete="name"><span class="err">Enter your name.</span></div>
-      <div class="row2"><div class="field"><label for="o-phone">Phone (mobile money)</label><input id="o-phone" type="tel" required autocomplete="tel"><span class="err">Enter a valid phone number.</span></div>
-      <div class="field"><label for="o-email">Email</label><input id="o-email" type="email" required autocomplete="email"><span class="err">Enter a valid email address.</span></div></div>
-      <div class="field" id="addr-field" hidden><label for="o-addr">Delivery address or school</label><textarea id="o-addr" style="min-height:80px" required></textarea><span class="err">Enter where we should deliver.</span></div>
+      <div class="field"><label for="o-name">Full name</label><input id="o-name" name="name" required autocomplete="name" maxlength="120"><span class="err">Enter your name.</span></div>
+      <div class="row2"><div class="field"><label for="o-phone">Phone (mobile money)</label><input id="o-phone" name="phone" type="tel" required autocomplete="tel" maxlength="30"><span class="err">Enter a valid phone number.</span></div>
+      <div class="field"><label for="o-email">Email</label><input id="o-email" name="email" type="email" required autocomplete="email" maxlength="190"><span class="err">Enter a valid email address.</span></div></div>
+      <div class="field" id="addr-field" hidden><label for="o-addr">Delivery address or school</label><textarea id="o-addr" name="address" style="min-height:80px" required maxlength="500"></textarea><span class="err">Enter where we should deliver.</span></div>
       <h2 style="margin-top:.6rem">Payment</h2>
       <div class="radios">
-        <label class="radio"><input type="radio" name="pay" value="mtn" data-name="MTN Mobile Money"><span><b>MTN Mobile Money</b><small>Approve the prompt on your phone</small></span></label>
-        <label class="radio"><input type="radio" name="pay" value="airtel" data-name="Airtel Money"><span><b>Airtel Money</b><small>Approve the prompt on your phone</small></span></label>
-        <label class="radio"><input type="radio" name="pay" value="card" data-name="Visa or Mastercard"><span><b>Visa or Mastercard</b><small>Secure card payment</small></span></label>
+        <label class="radio"><input type="radio" name="pay" value="mtn" data-name="MTN Mobile Money"><span><b>MTN Mobile Money</b><small>We contact you to complete payment</small></span></label>
+        <label class="radio"><input type="radio" name="pay" value="airtel" data-name="Airtel Money"><span><b>Airtel Money</b><small>We contact you to complete payment</small></span></label>
+        <label class="radio"><input type="radio" name="pay" value="card" data-name="Visa or Mastercard"><span><b>Visa or Mastercard</b><small>We send you a secure payment link</small></span></label>
         <label class="radio"><input type="radio" name="pay" value="cash" data-name="cash on pickup"><span><b>Pay when you collect</b><small>Cash at our shop</small></span></label></div>
       <button class="btn btn-primary btn-block" type="submit">Place order</button>
-      <p class="muted" style="font-size:.82rem;margin:.8rem 0 0">This is a design preview. No payment is taken.</p>
+      <p class="muted" style="font-size:.82rem;margin:.8rem 0 0">Nothing is charged on this page. We confirm your payment by phone or email before your order is prepared.</p>
     </form>
   </div>
 </div>
 <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><div class="box"><div class="okc"><svg viewBox="0 0 24 24"><polyline points="4 13 10 19 21 6"/></svg></div>
-  <h2 id="mt">Order received</h2><p>Your order reference is <b id="ref"></b>. We will confirm your <span id="pay-name"></span> payment by phone or email.</p><p class="note">Design preview only. No real order was created.</p><button class="btn btn-primary" type="button" style="margin-top:1rem">Back to home</button></div></div>
+  <h2 id="mt">Order received</h2><p>Your order reference is <b id="ref"></b>. We will confirm your <span id="pay-name"></span> payment by phone or email.</p><p class="note">We have emailed your order details to <b id="ref-email"></b>.</p><button class="btn btn-primary" type="button" style="margin-top:1rem">Back to home</button></div></div>
 @endsection

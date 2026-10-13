@@ -207,7 +207,7 @@
     if (!AUTH_PAGES.includes(page)) palette();
   }
   shell(); initTabs(); initForms();
-  (function cartBadge() { try { const n = (JSON.parse(localStorage.getItem('wakata_cart_v1')) || []).reduce((a, i) => a + i.qty, 0); $$('[data-cart-count]').forEach(b => { b.textContent = n || ''; b.hidden = !n; }); } catch (e) { } })();
+  (function cartBadge() { const n = ((window.WK || {}).cart || {}).count || 0; $$('[data-cart-count]').forEach(b => { b.textContent = n || ''; b.hidden = !n; }); })();
 
   window.ADM = { $, $$, ic, esc, toast, open, close, drawer, closeDrawer, confirm: confirmBox, csv, table, qs, me, repRow, addTag, fillForm, AD, WK, ADC };
 })();
