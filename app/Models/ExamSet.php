@@ -13,7 +13,7 @@ class ExamSet extends Model
 
     protected $fillable = [
         'slug', 'level_id', 'title', 'year_label', 'price', 'worth_price', 'papers_count', 'contents', 'previews',
-        'blurb', 'status', 'sort_order',
+        'blurb', 'guide_path', 'status', 'sort_order',
     ];
 
     protected function casts(): array

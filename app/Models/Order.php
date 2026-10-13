@@ -36,6 +36,23 @@ class Order extends Model
         return $this->belongsTo(Customer::class);
     }
 
+    public function events(): HasMany
+    {
+        return $this->hasMany(OrderEvent::class)->orderBy('created_at')->orderBy('id');
+    }
+
+    /** Add a line to the order history ("Payment received", "Out for delivery" ...). */
+    public function record(string $label, ?string $note = null, $at = null): OrderEvent
+    {
+        return $this->events()->create(['label' => $label, 'note' => $note, 'created_at' => $at ?? now()]);
+    }
+
+    /** A paid order that was not cancelled or refunded: invoices and PDF downloads depend on this. */
+    public function isCounted(): bool
+    {
+        return $this->payment_status === 'paid' && ! in_array($this->status, ['cancelled', 'refunded'], true);
+    }
+
     public function getPaymentLabelAttribute(): string
     {
         return config('wakata.payments.' . $this->payment_method, $this->payment_method);

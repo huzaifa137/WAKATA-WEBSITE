@@ -1,5 +1,8 @@
 <?php
 
+// WAKATA_PLACEHOLDER_PDFS: true/false. Left empty it is on everywhere except production.
+$placeholderPdfs = env('WAKATA_PLACEHOLDER_PDFS');
+
 return [
     'name'        => 'WAKATA',
     'description' => "WAKATA, the Wakiso Kampala Teachers' Association: mock examinations, past papers, practical workbooks and holiday packages. Affordable quality assessment.",
@@ -25,6 +28,15 @@ return [
     ],
     // Optional: staff address that gets a copy of every new order (WAKATA_ORDER_NOTIFY in .env).
     'order_notify' => env('WAKATA_ORDER_NOTIFY'),
+
+    // Customer portal (module 6)
+    // How many times a customer can download each PDF of an order. Support can raise it for one file (file_downloads.max_downloads).
+    'download_limit' => 5,
+    // Optional: staff address told when a customer writes in from Help and support. Falls back to WAKATA_ORDER_NOTIFY.
+    'support_notify' => env('WAKATA_SUPPORT_NOTIFY') ?: env('WAKATA_ORDER_NOTIFY'),
+    // While a paper has no PDF uploaded yet, hand out a small licence sheet instead of the real file, so the download flow can be tried.
+    // On by default everywhere except production; in production a customer is told the file is still being prepared (and no download is used).
+    'placeholder_pdfs' => ($placeholderPdfs === null || $placeholderPdfs === '') ? env('APP_ENV') !== 'production' : filter_var($placeholderPdfs, FILTER_VALIDATE_BOOLEAN),
 
     // Password for the seeded admin (and the local demo customer). Set WAKATA_SEED_PASSWORD in .env.
     'seed_password' => env('WAKATA_SEED_PASSWORD'),

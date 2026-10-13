@@ -56,7 +56,20 @@ class ShellRoutesTest extends TestCase
     {
         $c = Customer::create(['name' => 'Test Customer', 'email' => 'test.customer@example.com', 'password' => 'secret-pass-1', 'type' => 'Teacher']);
 
+        // The order and invoice pages need one of this customer's own paid orders
+        $o = \App\Models\Order::create([
+            'number' => 'WK-10001', 'customer_id' => $c->id, 'customer_name' => 'Test Customer', 'customer_email' => 'test.customer@example.com',
+            'customer_phone' => '0772123456', 'delivery_method' => 'email', 'payment_method' => 'mtn', 'payment_status' => 'paid', 'status' => 'completed',
+            'subtotal' => 2500, 'delivery_fee' => 0, 'total' => 2500,
+        ]);
+
         return ['LoggedCustomer' => $c->id];
+    }
+
+    /** Routes that take an order number get one. */
+    private function url(string $route): string
+    {
+        return in_array($route, ['account.order', 'account.invoice'], true) ? route($route, ['number' => 'WK-10001']) : route($route);
     }
 
     #[DataProvider('signedInPages')]
@@ -64,7 +77,7 @@ class ShellRoutesTest extends TestCase
     {
         $session = str_starts_with($route, 'admin.') ? $this->signedInAdmin() : $this->signedInCustomer();
 
-        $this->withSession($session)->get(route($route))->assertOk();
+        $this->withSession($session)->get($this->url($route))->assertOk();
     }
 
     #[DataProvider('signedInPages')]
@@ -72,7 +85,7 @@ class ShellRoutesTest extends TestCase
     {
         $login = str_starts_with($route, 'admin.') ? 'admin.login' : 'account.login';
 
-        $this->get(route($route))->assertRedirect(route($login));
+        $this->get($this->url($route))->assertRedirect(route($login));
     }
 
     #[DataProvider('guestPages')]

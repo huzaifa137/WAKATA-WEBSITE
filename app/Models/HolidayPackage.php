@@ -12,7 +12,7 @@ class HolidayPackage extends Model
     use FlushesCatalogue, Publishable;
 
     protected $fillable = [
-        'slug', 'level_id', 'name', 'audience', 'price', 'is_best', 'includes', 'status', 'featured_order', 'sort_order',
+        'slug', 'level_id', 'name', 'audience', 'price', 'is_best', 'includes', 'timetable_path', 'status', 'featured_order', 'sort_order',
     ];
 
     protected function casts(): array

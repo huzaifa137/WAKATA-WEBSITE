@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Support\Cart;
 use App\Support\CustomerSession;
+use App\Support\Portal;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -32,6 +33,14 @@ class AppServiceProvider extends ServiceProvider
 
             $view->with('wkUser', ($c = CustomerSession::resolve($request)) ? $c->toFrontend() : null);
             $view->with('wkCartCount', $request->hasSession() ? Cart::countFor($request->session()) : 0);
+        });
+
+        // The customer portal's own data (orders, files, threads, addresses ...) for the signed-in customer: WK.portal
+        View::composer('partials.account.auth-state', function ($view) {
+            $request  = request();
+            $customer = CustomerSession::resolve($request);
+
+            $view->with('wkPortal', $customer ? Portal::for($customer, $request->attributes->get('portal.focus')) : null);
         });
     }
 }

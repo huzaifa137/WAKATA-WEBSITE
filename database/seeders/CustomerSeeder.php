@@ -9,7 +9,7 @@ class CustomerSeeder extends Seeder
 {
     public function run(): void
     {
-        // Demo customer: signs in and sees the prototype's sample orders. Never created in production.
+        // Demo customer (orders, addresses and a support thread come from DemoPortalSeeder). Never created in production.
         if (app()->isProduction()) {
             return;
         }
@@ -22,7 +22,6 @@ class CustomerSeeder extends Seeder
                 'type'         => 'Teacher',
                 'school'       => 'Green Hill Secondary School',
                 'password'     => config('wakata.seed_password') ?: 'Wakata@2026',
-                'preview_data' => true,
             ]
         );
     }

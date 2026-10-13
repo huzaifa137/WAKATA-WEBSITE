@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
             AdminSeeder::class,
             CustomerSeeder::class,
             CatalogueSeeder::class,
+            DemoPortalSeeder::class,   // after the catalogue: demo orders use real products
         ]);
     }
 }

@@ -16,7 +16,7 @@ class LoggedCustomer
         $customer = CustomerSession::resolve($request);
 
         if (! $customer) {
-            $request->session()->forget('LoggedCustomer');
+            $request->session()->forget(['LoggedCustomer', 'LoggedCustomerEpoch']);
 
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Please sign in to continue.'], 401);

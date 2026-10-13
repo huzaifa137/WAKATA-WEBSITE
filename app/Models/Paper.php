@@ -13,7 +13,7 @@ class Paper extends Model
 
     protected $fillable = [
         'slug', 'level_id', 'subject_id', 'paper', 'year', 'title', 'duration', 'print_price', 'pdf_price',
-        'cover_image', 'status', 'featured_order', 'sort_order',
+        'cover_image', 'pdf_path', 'status', 'featured_order', 'sort_order',
     ];
 
     protected function casts(): array

@@ -99,6 +99,7 @@ class CheckoutController extends Controller
 
             // The number comes from the row id, so two orders can never share one.
             $order->forceFill(['number' => 'WK-' . (Order::NUMBER_BASE + $order->id)])->save();
+            $order->record('Order placed', 'Online checkout');
 
             foreach ($priced['lines'] as $l) {
                 $order->items()->create([

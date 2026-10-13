@@ -7,7 +7,7 @@
   'use strict';
   const $ = (s, r) => (r || document).querySelector(s), $$ = (s, r) => [...(r || document).querySelectorAll(s)];
   const AD = window.AD, ADC = window.ADC, WK = window.WK, page = document.body.dataset.page;
-  const AUTH_PAGES = ['login', 'register', 'forgot', 'reset', '404'];
+  const AUTH_PAGES = ['login', 'register', 'forgot', 'reset', 'verify', '404'];
   const ic = n => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${ADC.icons[n] || ''}</svg>`;
   const esc = AD.esc, qs = k => new URLSearchParams(location.search).get(k);
   const me = (window.WK && WK.user) || {}; /* set by Laravel (partials/account/auth-state) */
@@ -167,9 +167,10 @@
   function palette() {
     const m = document.createElement('div'); m.className = 'mback pal'; m.id = 'pal'; m.innerHTML = '<div class="box" role="dialog" aria-modal="true" aria-label="Search"><input type="search" placeholder="Search your orders, downloads and the shop…" aria-label="Search" autocomplete="off"><ul></ul></div>'; document.body.appendChild(m);
     const inp = $('input', m), ul = $('ul', m); let items = [], hi = 0;
-    const pages = ADC.nav.flatMap(g => g.items.map(i => ({ g: 'Pages', t: i.label, s: g.group, href: i.href, icon: i.icon })));
-    [['Browse past papers', '../past-papers.html', 'file'], ['Browse books', '../books.html', 'book'], ['Exam sets', '../exam-sets.html', 'layers'], ['Holiday packages', '../holiday-packages.html', 'gift'], ['Open my cart', '../cart.html', 'cart']].forEach(a => pages.push({ g: 'Quick actions', t: a[0], s: '', href: a[1], icon: a[2] }));
-    const data = () => [...pages, ...WK.books.map(b => ({ g: 'Books', t: b.title, s: b.subject, href: '../book.html?id=' + b.id, icon: 'book' })), ...AD.orders.slice(0, 80).map(o => ({ g: 'Orders', t: o.id, s: AD.fmtDate(o.ts) + ' · ' + WK.money(o.total), href: 'order.html?id=' + o.id, icon: 'cart' }))];
+    const R = AD.R, NAV = { 'index.html': R.dashboard, 'library.html': R.library, 'orders.html': R.orders, 'invoices.html': R.invoices, 'saved.html': R.saved, 'addresses.html': R.addresses, 'support.html': R.support, 'profile.html': R.profile, '../past-papers.html': R.papers, '../books.html': R.books, '../exam-sets.html': R.sets };
+    const pages = ADC.nav.flatMap(g => g.items.map(i => ({ g: 'Pages', t: i.label, s: g.group, href: NAV[i.href] || R.dashboard, icon: i.icon })));
+    [['Browse past papers', R.papers, 'file'], ['Browse books', R.books, 'book'], ['Exam sets', R.sets, 'layers'], ['Holiday packages', R.packages, 'gift'], ['Open my cart', R.cart, 'cart']].forEach(a => pages.push({ g: 'Quick actions', t: a[0], s: '', href: a[1], icon: a[2] }));
+    const data = () => [...pages, ...WK.books.map(b => ({ g: 'Books', t: b.title, s: b.subject, href: R.book + '?id=' + b.id, icon: 'book' })), ...AD.orders.slice(0, 80).map(o => ({ g: 'Orders', t: o.id, s: AD.fmtDate(o.ts) + ' · ' + WK.money(o.total), href: AD.url.order(o.id), icon: 'cart' }))];
     const all = data();
     function render() { const q = inp.value.trim().toLowerCase(); items = (q ? all.filter(x => (x.t + ' ' + x.s + ' ' + x.g).toLowerCase().includes(q)) : all.filter(x => x.g !== 'Orders' && x.g !== 'Books')).slice(0, 30); hi = 0; let last = ''; ul.innerHTML = items.length ? items.map((x, i) => { const h = x.g !== last ? `<li class="gh">${x.g}</li>` : ''; last = x.g; return h + `<li><a href="${x.href}" class="${i === 0 ? 'hi' : ''}" data-i="${i}">${ic(x.icon)}<span>${esc(x.t)}</span><small>${esc(x.s)}</small></a></li>`; }).join('') : '<li class="empty">No matches</li>'; }
     inp.addEventListener('input', render);
@@ -182,7 +183,7 @@
   /* ---------- shell ---------- */
   function shell() {
     if (me.name) { $$('[data-me-name]').forEach(n => n.textContent = me.name); $$('[data-me-initials]').forEach(n => n.textContent = AD.initials(me.name)); }
-    const nl = $('#notifList'); if (nl) nl.insertAdjacentHTML('beforeend', AD.notifications.map(n => `<div class="it"><span class="ni">${ic(n.icon)}</span><div><b>${esc(n.t)}</b><small>${esc(n.s)} · ${AD.rel(n.ts)}</small></div></div>`).join('') + '<a href="activity.html" style="display:block;text-align:center;padding:.7rem;font-weight:700;font-size:.85rem">View all activity</a>');
+    const nl = $('#notifList'); if (nl) nl.insertAdjacentHTML('beforeend', AD.notifications.map(n => `<div class="it"><span class="ni">${ic(n.icon)}</span><div><b>${esc(n.t)}</b><small>${esc(n.s)} · ${AD.rel(n.ts)}</small></div></div>`).join('') + '<a href="' + esc(AD.R.orders || '#') + '" style="display:block;text-align:center;padding:.7rem;font-weight:700;font-size:.85rem">View my orders</a>');
     const bc = { orders: AD.orders.filter(o => o.status === 'pending').length, messages: AD.messages.filter(m => m.status === 'new').length };
     $$('[data-badge]').forEach(b => { const n = bc[b.dataset.badge]; if (n) b.textContent = n; else b.remove(); });
     const tb = $('#themeBtn'), setIcon = () => { if (tb) tb.innerHTML = ic(document.documentElement.getAttribute('data-theme') === 'dark' ? 'sun' : 'moon'); };

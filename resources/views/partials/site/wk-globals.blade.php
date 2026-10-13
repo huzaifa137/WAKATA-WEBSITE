@@ -19,6 +19,7 @@ window.WK = {
     accountOrders: @json(route('account.orders')),
     accountSaved: @json(route('account.saved')),
     accountLogout: @json(route('account.logout')),
+    saveItem: @json(route('account.saved.store')),
     adminLogin: @json(route('admin.login')),
     cartAdd: @json(route('cart.add')),
     cartUpdate: @json(route('cart.update')),

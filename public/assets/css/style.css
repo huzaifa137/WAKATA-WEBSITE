@@ -1086,3 +1086,11 @@ img,svg,video,iframe{max-width:100%}
 .acct-btn,.acct-lbl{white-space:nowrap}
 @media (max-width:1500px){.hsearch{display:none}}
 @media (max-width:1180px){.acct-lbl{display:none}.acct-btn{padding:0;width:44px;justify-content:center}.acct-btn:has(.acct-av){padding:0}}
+
+/* Save for later (heart) next to the Add buttons */
+.acts{display:inline-flex;align-items:center;gap:.4rem}
+.acts.wide{display:flex}.acts.wide .btn{flex:1}
+.sv{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--blue);cursor:pointer;transition:background .2s,color .2s}
+.sv:hover,.sv.on{background:var(--pen);border-color:var(--pen);color:#fff}
+.sv .ico{width:17px;height:17px}
+@media (max-width:640px){.bk-foot .acts{width:100%}.bk-foot .acts .add{flex:1}}

@@ -22,6 +22,8 @@
     download: '<path d="M12 3v12"/><polyline points="7 11 12 16 17 11"/><path d="M4 20h16"/>',
     arrow: '<line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/>'
   };
+  ICON.heart = '<path d="M12 21s-7-4.6-9.2-9A5.2 5.2 0 0 1 12 6.5 5.2 5.2 0 0 1 21.2 12C19 16.4 12 21 12 21z"/>';
+  const sv = (t, id) => `<button class="sv" type="button" data-save data-type="${t}" data-id="${id}" aria-label="Save for later" title="Save for later">${ic('heart')}</button>`;
   const ic = n => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${ICON[n]}</svg>`;
 
   /* ---------------- Cart (server session) ---------------- */
@@ -93,7 +95,7 @@
       <div class="bk-body"><span class="bk-meta">${D.BOOK_LEVELS[b.level]} ${esc(b.subject)}</span>
       <h3 class="bk-title"><a href="${WK.r.book}?id=${b.id}">${esc(b.title)}</a></h3>
       <div class="bk-foot"><span class="price">${b.old ? `<s>${D.money(b.old)}</s>` : ''}${D.money(b.price)}</span>
-      <button class="add" data-add data-type="book" data-id="${b.id}" aria-label="Add ${esc(b.title)} to cart">${ic('cart')}Add</button></div></div></article>`;
+      <span class="acts">${sv('book', b.id)}<button class="add" data-add data-type="book" data-id="${b.id}" aria-label="Add ${esc(b.title)} to cart">${ic('cart')}Add</button></span></div></div></article>`;
   }
   const lvFull = k => (D.LEVELS[k] && D.LEVELS[k].full) || '';
   function sheetHTML(p) {
@@ -109,7 +111,7 @@
         <label><input type="radio" name="${n}" value="print" checked data-fmt><span>Printed</span></label>
         <label><input type="radio" name="${n}" value="pdf" data-fmt><span>PDF</span></label></div>
       <div class="bk-foot"><span class="price" data-price data-print="${p.print}" data-pdf="${p.pdf}">${D.money(p.print)}</span>
-      <button class="add" data-add data-type="paper" data-id="${p.id}" aria-label="Add ${esc(p.title)} ${p.year} to cart">${ic('cart')}Add</button></div></div></article>`;
+      <span class="acts">${sv('paper', p.id)}<button class="add" data-add data-type="paper" data-id="${p.id}" aria-label="Add ${esc(p.title)} ${p.year} to cart">${ic('cart')}Add</button></span></div></div></article>`;
   }
   function setCard(s) {
     const save = Math.round((1 - s.price / s.worth) * 100);
@@ -118,14 +120,14 @@
       <p class="inc">${esc(s.blurb)}</p>
       <details><summary>${s.papers} papers included</summary><ul>${s.subjects.map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>
       <div class="bk-foot"><span class="price"><s>${D.money(s.worth)}</s>${D.money(s.price)}<span class="save">Save ${save}%</span></span>
-      <button class="add" data-add data-type="set" data-id="${s.id}">${ic('cart')}Add set</button></div></div></article>`;
+      <span class="acts">${sv('set', s.id)}<button class="add" data-add data-type="set" data-id="${s.id}">${ic('cart')}Add set</button></span></div></div></article>`;
   }
   function packCard(k) {
     return `<article class="pk${k.best ? ' best' : ''}">${k.best ? '<span class="ribbon">Most chosen</span>' : ''}
       <span class="for">${esc(k.for)}</span><h3>${esc(k.name)}</h3>
       <div class="amt">${D.money(k.price)} <small>per holiday</small></div>
       <ul>${k.includes.map(x => `<li>${ic('check')}<span>${esc(x)}</span></li>`).join('')}</ul>
-      <button class="btn ${k.best ? 'btn-primary' : 'btn-line'}" data-add data-type="pack" data-id="${k.id}">Add package to cart</button></article>`;
+      <div class="acts wide">${sv('pack', k.id)}<button class="btn ${k.best ? 'btn-primary' : 'btn-line'}" data-add data-type="pack" data-id="${k.id}">Add package to cart</button></div></article>`;
   }
   const emptyMsg = (t, s) => `<div class="empty"><h3>${t}</h3><p class="muted">${s}</p><a class="btn btn-line btn-sm" href="?">Clear all filters</a></div>`;
 
@@ -361,6 +363,17 @@
         toast(cartLink);
         if (a.classList.contains('add')) { const o = a.innerHTML; a.classList.add('done'); a.innerHTML = ic('check') + 'Added'; setTimeout(() => { a.classList.remove('done'); a.innerHTML = o; }, 1400); }
       });
+    }
+    const sb = e.target.closest('[data-save]');
+    if (sb && !sb.dataset.busy) {
+      if (!WK.user) { toast('Sign in to save items for later. <a href="' + WK.r.accountLogin + '">Sign in</a>'); return; }
+      const type = sb.dataset.type; let fmt = null;
+      if (type === 'paper') { const r = sb.closest('.pp').querySelector('input[data-fmt]:checked'); fmt = r ? r.value : 'print'; }
+      sb.dataset.busy = '1';
+      fetch(WK.r.saveItem, { method: 'POST', credentials: 'same-origin', headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': WK.csrf }, body: JSON.stringify({ items: [{ type, id: sb.dataset.id, fmt }] }) })
+        .then(r => r.json().catch(() => ({})).then(d => ({ ok: r.ok, d })))
+        .then(r => { delete sb.dataset.busy; if (r.ok) { sb.classList.add('on'); toast('Saved for later. <a href="' + WK.r.accountSaved + '">View saved items</a>'); } else toast(esc((r.d && r.d.message) || 'Could not save this item.')); })
+        .catch(() => { delete sb.dataset.busy; toast('No connection. Check your internet and try again.'); });
     }
     if (e.target.closest('[data-noop]')) e.preventDefault();
     const bg = e.target.closest('#burger'); if (bg) { const n = $('#nav'); const o = n.classList.toggle('open'); bg.setAttribute('aria-expanded', o); }
