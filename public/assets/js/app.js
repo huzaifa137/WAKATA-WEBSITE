@@ -1,6 +1,7 @@
 /* ==========================================================
    WAKATA front end — vanilla JS (no build step, no dependencies)
-   Cart is stored in localStorage until the Laravel backend exists.
+   Catalogue data comes from the database (WK.catalogue, see data.js).
+   Cart is stored in localStorage until module 5 moves it to the server.
    ========================================================== */
 (function () {
   'use strict';
@@ -68,10 +69,10 @@
       <div class="bk-foot"><span class="price">${b.old ? `<s>${D.money(b.old)}</s>` : ''}${D.money(b.price)}</span>
       <button class="add" data-add data-type="book" data-id="${b.id}" aria-label="Add ${esc(b.title)} to cart">${ic('cart')}Add</button></div></div></article>`;
   }
-  const LV_FULL = { ple: 'Primary Leaving Examination', uce: 'Uganda Certificate of Education', uace: 'Uganda Advanced Certificate of Education' };
+  const lvFull = k => (D.LEVELS[k] && D.LEVELS[k].full) || '';
   function sheetHTML(p) {
     if (p.img) return `<div class="sheet"><img src="${p.img}" alt="First page of ${esc(p.title)} ${p.year}" loading="lazy"></div>`;
-    return `<div class="sheet gen" aria-hidden="true"><img src="${WK.u('assets/img/logo.png')}" alt=""><b>WAKATA MOCK EXAMINATIONS ${p.year}</b><span>${LV_FULL[p.level]}</span><b class="big">${esc(p.subject)}</b><b>${p.level === 'ple' ? 'Primary Seven' : esc(p.paper)}</b><div class="rule"></div><i></i><i style="width:88%"></i><i style="width:94%"></i><i style="width:70%"></i><i></i><i style="width:82%"></i></div>`;
+    return `<div class="sheet gen" aria-hidden="true"><img src="${WK.u('assets/img/logo.png')}" alt=""><b>WAKATA MOCK EXAMINATIONS ${p.year}</b><span>${esc(lvFull(p.level))}</span><b class="big">${esc(p.subject)}</b><b>${p.level === 'ple' ? 'Primary Seven' : esc(p.paper)}</b><div class="rule"></div><i></i><i style="width:88%"></i><i style="width:94%"></i><i style="width:70%"></i><i></i><i style="width:82%"></i></div>`;
   }
   function paperCard(p) {
     const n = 'fmt-' + p.id;
@@ -111,13 +112,12 @@
 
   /* ---------------- Page: Home ---------------- */
   function home() {
-    const feat = ['bio-uce-practical', 'phy-uclse-new', 'bio-uclse-new', 'math-uce-revision', 'phy-practicals-s123', 'phonics-short-vowels', 'chem-uce-practical', 'agric-uce-notes'];
-    $('#home-books').innerHTML = feat.map(id => bookCard(D.byId(D.books, id))).join('');
-    const pids = ['pp-uce-mathematics-paper-1-2026', 'pp-uace-literature-in-english-paper-2-2024', 'pp-ple-mathematics-paper-1-2025', 'pp-uce-art-design-paper-2-2026'];
-    $('#home-papers').innerHTML = pids.map(id => paperCard(D.byId(D.papers, id))).join('');
-    $('#home-packs').innerHTML = ['hp-p7', 'hp-s4', 'hp-s6'].map(id => packCard(D.byId(D.packages, id))).join('');
+    const F = D.featured || {}, pick = (list, ids) => (ids || []).map(id => D.byId(list, id)).filter(Boolean);
+    $('#home-books').innerHTML = pick(D.books, F.books).map(bookCard).join('');
+    $('#home-papers').innerHTML = pick(D.papers, F.papers).map(paperCard).join('');
+    $('#home-packs').innerHTML = pick(D.packages, F.packages).map(packCard).join('');
     const bc = countBy(D.books, b => b.level), pc = countBy(D.papers, p => p.level);
-    $$('[data-lvl-count]').forEach(el => { const [lv, bl] = el.dataset.lvlCount.split(':'); el.textContent = `${bc[bl]} books and ${pc[lv]} past papers`; });
+    $$('[data-lvl-count]').forEach(el => { const [lv, bl] = el.dataset.lvlCount.split(':'); el.textContent = `${bc[bl] || 0} books and ${pc[lv] || 0} past papers`; });
     const subs = [...new Set(D.papers.map(p => p.subject))].sort();
     $('#f-subject').insertAdjacentHTML('beforeend', subs.map(s => `<option>${esc(s)}</option>`).join(''));
     const yrs = [...new Set(D.papers.map(p => p.year))].sort((a, b) => b - a);
@@ -162,7 +162,8 @@
 
   /* ---------------- Page: Book detail ---------------- */
   function detail() {
-    const b = D.byId(D.books, params.get('id')) || D.books[0];
+    const b = D.byId(D.books, WK.bookId || params.get('id'));
+    if (!b) { location.replace(WK.r.books); return; }
     document.title = b.title + ' | WAKATA Stationers';
     $('#d-crumb').textContent = b.title;
     $('#d-stage').innerHTML = `<div class="book">${cover(b)}</div>`;

@@ -22,6 +22,7 @@ window.WK = {
     adminLogin: @json(route('admin.login'))
   },
   user: @json($wkUser ?? null),
+  bookId: @json(isset($book) ? $book->slug : null),
   csrf: @json(csrf_token()),
   contact: { wa: @json(config('wakata.whatsapp')), tel: @json(config('wakata.phone_tel')) }
 };

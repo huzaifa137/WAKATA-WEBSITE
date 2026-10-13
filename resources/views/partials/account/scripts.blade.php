@@ -1,4 +1,5 @@
 <form id="logoutForm" method="POST" action="{{ route('account.logout') }}" hidden>@csrf</form>
+@include('partials.catalogue')
 <script src="{{ asset('assets/js/data.js') }}"></script>
 <script src="{{ asset('assets/account/js/account-data.js') }}"></script>
 <script src="{{ asset('assets/account/js/charts.js') }}"></script>

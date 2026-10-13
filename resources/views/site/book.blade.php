@@ -1,7 +1,35 @@
 @extends('layouts.site')
 
-@section('title', 'Book | WAKATA Stationers')
+@section('title', $book->title . ' | WAKATA Stationers')
+@section('description', \Illuminate\Support\Str::limit($book->description, 155))
 @section('page', 'detail')
+
+@push('head')
+@php
+  $ld = array_filter([
+    '@context'    => 'https://schema.org',
+    '@type'       => 'Product',
+    'name'        => $book->title,
+    'description' => $book->description,
+    'image'       => $book->cover_url,
+    'category'    => $book->level->book_label . ' ' . $book->subject->name,
+    'brand'       => ['@type' => 'Brand', 'name' => 'WAKATA'],
+    'offers'      => [
+      '@type'         => 'Offer',
+      'priceCurrency' => 'UGX',
+      'price'         => $book->price,
+      'url'           => route('site.book', ['id' => $book->slug]),
+      'availability'  => 'https://schema.org/InStock',
+    ],
+  ]);
+@endphp
+<link rel="canonical" href="{{ route('site.book', ['id' => $book->slug]) }}">
+<meta property="og:type" content="product">
+<meta property="og:title" content="{{ $book->title }}">
+<meta property="og:description" content="{{ \Illuminate\Support\Str::limit($book->description, 155) }}">
+@if($book->cover_url)<meta property="og:image" content="{{ $book->cover_url }}">@endif
+<script type="application/ld+json">@json($ld)</script>
+@endpush
 
 @section('content')
 

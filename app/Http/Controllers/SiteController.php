@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Book;
+use Illuminate\Http\Request;
+
 class SiteController extends Controller
 {
     public function home()
@@ -14,9 +17,20 @@ class SiteController extends Controller
         return view('site.books');
     }
 
-    public function book()
+    /** /book?id=bio-uce-practical (same link format the prototype used). */
+    public function book(Request $request)
     {
-        return view('site.book');
+        $slug = trim((string) $request->query('id', ''));
+
+        if ($slug === '') {
+            return redirect()->route('site.books');
+        }
+
+        // Unknown or unpublished books are a real 404 (the prototype quietly showed the first book instead).
+        $book = Book::published()->with(['subject', 'level'])->where('slug', $slug)->first();
+        abort_if(! $book, 404);
+
+        return view('site.book', ['book' => $book]);
     }
 
     public function papers()
