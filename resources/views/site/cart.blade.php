@@ -22,10 +22,15 @@
       <div class="field" id="addr-field" hidden><label for="o-addr">Delivery address or school</label><textarea id="o-addr" name="address" style="min-height:80px" required maxlength="500"></textarea><span class="err">Enter where we should deliver.</span></div>
       <h2 style="margin-top:.6rem">Payment</h2>
       <div class="radios">
-        <label class="radio"><input type="radio" name="pay" value="mtn" data-name="MTN Mobile Money"><span><b>MTN Mobile Money</b><small>We contact you to complete payment</small></span></label>
-        <label class="radio"><input type="radio" name="pay" value="airtel" data-name="Airtel Money"><span><b>Airtel Money</b><small>We contact you to complete payment</small></span></label>
-        <label class="radio"><input type="radio" name="pay" value="card" data-name="Visa or Mastercard"><span><b>Visa or Mastercard</b><small>We send you a secure payment link</small></span></label>
-        <label class="radio"><input type="radio" name="pay" value="cash" data-name="cash on pickup"><span><b>Pay when you collect</b><small>Cash at our shop</small></span></label></div>
+        @php($payInfo = [
+            'mtn'    => ['MTN Mobile Money', 'We contact you to complete payment', 'MTN Mobile Money'],
+            'airtel' => ['Airtel Money', 'We contact you to complete payment', 'Airtel Money'],
+            'card'   => ['Visa or Mastercard', 'We send you a secure payment link', 'Visa or Mastercard'],
+            'cash'   => ['Pay when you collect', 'Cash at our shop', 'cash on pickup'],
+        ])
+        @foreach (array_keys(config('wakata.payments')) as $method)
+        <label class="radio"><input type="radio" name="pay" value="{{ $method }}" data-name="{{ $payInfo[$method][2] }}"><span><b>{{ $payInfo[$method][0] }}</b><small>{{ $payInfo[$method][1] }}</small></span></label>
+        @endforeach</div>
       <button class="btn btn-primary btn-block" type="submit">Place order</button>
       <p class="muted" style="font-size:.82rem;margin:.8rem 0 0">Nothing is charged on this page. We confirm your payment by phone or email before your order is prepared.</p>
     </form>

@@ -78,3 +78,13 @@ super admin, manager or editor (`Admin::canManageCatalogue()`, middleware `admin
 ```bash
 php artisan test
 ```
+
+## Module 8: admin sales
+
+- **Orders**: real list, tabs, filters, CSV; bulk confirm / processing / email; "Create order" for phone and walk-in orders (priced by the server like the shop); order page with status, cancel, internal note, courier note, email customer, resend PDF files.
+- **Payments**: verify and refund from the table or the order page; the four payment-method switches decide what the cart page shows and what checkout accepts; Reconcile lists payments still waiting.
+- **Deliveries**: board moves change the order status; "Options and fees" saves the names, times and fees checkout uses (and can switch an option off); PDF emails tab with Resend.
+- **Customers**: registered customers plus guest buyers (grouped by email), Add customer, internal note.
+- **Rules** (`App\Support\OrderFlow`): cancelled/refunded orders are closed; a paid order is refunded, not cancelled; completing needs payment (cash is paid by collecting); confirming takes printed stock once, cancel/refund puts it back (stock history reasons `sale` and `return`).
+- **Access**: orders, deliveries, customers need super admin, manager or support (`admin.can:sales`); payments, payment methods and delivery fees need super admin or manager (`admin.can:payments`). Everyone signed in can look.
+- Run `php artisan migrate` (adds order/customer columns).

@@ -3,6 +3,21 @@
 // WAKATA_PLACEHOLDER_PDFS: true/false. Left empty it is on everywhere except production.
 $placeholderPdfs = env('WAKATA_PLACEHOLDER_PDFS');
 
+// Checkout options as shipped. Admin > Deliveries and Admin > Payments can rename them, change the fee and switch them off
+// (see App\Support\ShopSettings); the live lists below then follow those settings.
+$deliveryDefaults = [
+    'pickup'    => ['label' => 'Pick up from our shop', 'fee' => 0,     'eta' => 'Ready within one working day'],
+    'kampala'   => ['label' => 'Kampala and Wakiso',    'fee' => 8000,  'eta' => '1 to 2 days'],
+    'upcountry' => ['label' => 'Upcountry courier',     'fee' => 15000, 'eta' => '2 to 4 days'],
+    'email'     => ['label' => 'Email delivery (PDF)',  'fee' => 0,     'eta' => 'On payment confirmation'],
+];
+$paymentDefaults = [
+    'mtn'    => 'MTN Mobile Money',
+    'airtel' => 'Airtel Money',
+    'card'   => 'Visa or Mastercard',
+    'cash'   => 'Cash on pickup',
+];
+
 return [
     'name'        => 'WAKATA',
     'description' => "WAKATA, the Wakiso Kampala Teachers' Association: mock examinations, past papers, practical workbooks and holiday packages. Affordable quality assessment.",
@@ -14,18 +29,14 @@ return [
     'address'     => 'Wakiso and Kampala, Uganda',
 
     // Checkout (module 5). Fees are in UGX. The server decides the fee from the chosen method, never from the browser.
-    'delivery' => [
-        'pickup'    => ['label' => 'Pick up from our shop', 'fee' => 0,     'eta' => 'Ready within one working day'],
-        'kampala'   => ['label' => 'Kampala and Wakiso',    'fee' => 8000,  'eta' => '1 to 2 days'],
-        'upcountry' => ['label' => 'Upcountry courier',     'fee' => 15000, 'eta' => '2 to 4 days'],
-        'email'     => ['label' => 'Email delivery (PDF)',  'fee' => 0,     'eta' => 'On payment confirmation'],
-    ],
-    'payments' => [
-        'mtn'    => 'MTN Mobile Money',
-        'airtel' => 'Airtel Money',
-        'card'   => 'Visa or Mastercard',
-        'cash'   => 'Cash on pickup',
-    ],
+    // 'delivery' and 'payments' are what customers can choose today (switched-off options removed).
+    // 'delivery_all' and 'payments_all' keep every option, with an 'enabled' flag, for the admin screens and for old orders' labels.
+    'delivery'     => $deliveryDefaults,
+    'payments'     => $paymentDefaults,
+    'delivery_base' => $deliveryDefaults,
+    'payments_base' => $paymentDefaults,
+    'delivery_all' => array_map(fn ($d) => $d + ['enabled' => true], $deliveryDefaults),
+    'payments_all' => $paymentDefaults,
     // Optional: staff address that gets a copy of every new order (WAKATA_ORDER_NOTIFY in .env).
     'order_notify' => env('WAKATA_ORDER_NOTIFY'),
 

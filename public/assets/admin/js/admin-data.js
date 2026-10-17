@@ -162,7 +162,40 @@ window.AD = (function () {
   const recOf = (type, id) => WK.byId(type === 'book' ? WK.books : type === 'paper' ? WK.papers : type === 'set' ? WK.sets : WK.packages, id);
   const thumbById = (type, id) => { const r = recOf(type, id); return r ? thumbOf(type, r) : genThumb('Mathematics'); };
 
+  /* ---------- Module 8: the sales pages get the REAL orders and customers from Laravel (WK.sales) ----------
+     Orders, customers, delivery options and payment methods replace the generated samples, so every table, chart and KPI
+     on those pages is drawn from the database. Pages that did not ask for WK.sales (dashboard, reports ...) keep the samples
+     until their own module is built. After a change the server sends back the fresh order or customer: upsertOrder() and
+     upsertCustomer() fold it in, and the totals per customer are worked out again from the orders. */
+  const sales = (function () {
+    const S = WK.sales; if (!S) return null;
+    Object.keys(DELIVERY).forEach(k => delete DELIVERY[k]);
+    Object.entries(S.delivery).forEach(([k, d]) => { DELIVERY[k] = { label: d.label, fee: d.fee, eta: d.eta, enabled: d.enabled }; });
+    Object.keys(PAY_METHODS).forEach(k => delete PAY_METHODS[k]);
+    Object.entries(S.payments).forEach(([k, m]) => { PAY_METHODS[k] = m.label; });
+    const ghost = o => ({ id: o.custId || ('G-' + o.id), dbId: null, name: o.name, type: 'Guest', phone: o.phone, email: o.email, district: '', contact: '', note: '', joined: o.ts });
+    function link() {
+      orders.sort((a, b) => b.ts - a.ts);
+      Object.keys(custById).forEach(k => delete custById[k]);
+      customers.forEach(c => { custById[c.id] = c; });
+      orders.forEach(o => { if (!custById[o.custId]) { const g = ghost(o); customers.push(g); custById[g.id] = g; } o.cust = custById[o.custId]; });
+      customers.forEach(c => {
+        const mine = orders.filter(o => o.custId === c.id);
+        c.orders = mine.length; c.spent = sum(mine.filter(counted), o => o.total); c.last = mine[0] || null; c.lastTs = c.last ? c.last.ts : 0;
+      });
+    }
+    orders.length = 0; customers.length = 0;
+    S.orders.forEach(o => orders.push(o)); S.customers.forEach(c => customers.push(c));
+    link();
+    return {
+      data: S, can: S.can, routes: S.routes, items: S.items,
+      upsertOrder(o) { const cur = orders.find(x => x.id === o.id); if (cur) Object.assign(cur, o); else orders.unshift(o); link(); return orders.find(x => x.id === o.id); },
+      upsertCustomer(c) { const cur = customers.find(x => x.id === c.id); if (cur) Object.assign(cur, c); else customers.push(c); link(); return custById[c.id]; },
+      setDelivery(d) { Object.entries(d).forEach(([k, v]) => { DELIVERY[k] = { label: v.label, fee: v.fee, eta: v.eta, enabled: v.enabled }; }); }
+    };
+  })();
+
   return { WK, rnd, NOW, DAY, orders, customers, custById, messages, subscribers, team, activity, notifications, ORDER_STATUS, PAY_STATUS, PAY_METHODS, DELIVERY, LVL, LVL_LABEL, TYPE_LABEL,
     counted, within, series, byCategory, byLevel, bySubject, topProducts, byMethod, byStatus, byDelivery, byWeekday, sum, itemRev,
-    fmtDate, fmtTime, rel, img, initials, esc, thumbOf, thumbById, genThumb, recOf, money, mTopics };
+    fmtDate, fmtTime, rel, img, initials, esc, thumbOf, thumbById, genThumb, recOf, money, mTopics, sales };
 })();

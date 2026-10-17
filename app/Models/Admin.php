@@ -36,6 +36,18 @@ class Admin extends Model
         return in_array($this->role, ['super_admin', 'manager', 'editor'], true);
     }
 
+    /** Roles that may work orders, deliveries and customers (change status, create orders, add customers). Editors can look. */
+    public function canManageSales(): bool
+    {
+        return in_array($this->role, ['super_admin', 'manager', 'support'], true);
+    }
+
+    /** Roles that may handle money: confirm or refund a payment, switch payment methods, change delivery fees. */
+    public function canManagePayments(): bool
+    {
+        return in_array($this->role, ['super_admin', 'manager'], true);
+    }
+
     public function getRoleLabelAttribute(): string
     {
         return self::ROLES[$this->role] ?? ucfirst(str_replace('_', ' ', (string) $this->role));

@@ -19,11 +19,15 @@ class Order extends Model
         'number', 'customer_id', 'customer_name', 'customer_email', 'customer_phone',
         'delivery_method', 'delivery_address', 'payment_method', 'payment_status', 'status', 'transaction_ref',
         'subtotal', 'delivery_fee', 'total', 'note', 'ip_address',
+        'admin_note', 'courier_note', 'paid_at', 'stock_deducted_at', 'source',
     ];
 
     protected function casts(): array
     {
-        return ['subtotal' => 'integer', 'delivery_fee' => 'integer', 'total' => 'integer'];
+        return [
+            'subtotal' => 'integer', 'delivery_fee' => 'integer', 'total' => 'integer',
+            'paid_at' => 'datetime', 'stock_deducted_at' => 'datetime',
+        ];
     }
 
     public function items(): HasMany
@@ -55,17 +59,17 @@ class Order extends Model
 
     public function getPaymentLabelAttribute(): string
     {
-        return config('wakata.payments.' . $this->payment_method, $this->payment_method);
+        return config('wakata.payments_all.' . $this->payment_method, $this->payment_method);
     }
 
     public function getDeliveryLabelAttribute(): string
     {
-        return config('wakata.delivery.' . $this->delivery_method . '.label', $this->delivery_method);
+        return config('wakata.delivery_all.' . $this->delivery_method . '.label', $this->delivery_method);
     }
 
     public function getDeliveryEtaAttribute(): string
     {
-        return config('wakata.delivery.' . $this->delivery_method . '.eta', '');
+        return config('wakata.delivery_all.' . $this->delivery_method . '.eta', '');
     }
 
     /** True when something has to be handed over or delivered (not only PDFs). */

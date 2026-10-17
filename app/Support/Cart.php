@@ -24,6 +24,7 @@ class Cart
     public const KEY       = 'wk_cart';
     public const MAX_LINES = 40;
     public const MAX_QTY   = 99;
+    public const ADMIN_MAX_QTY = 5000;   // staff typing in a school's bulk order
     public const TYPES     = ['book', 'paper', 'set', 'pack'];
 
     public function __construct(private Session $session)
@@ -186,6 +187,35 @@ class Cart
         } else {
             $this->session->forget(self::KEY);
         }
+    }
+
+    /**
+     * Price some lines the way the shop does (published products only, formats switched off refused). Used by the admin
+     * "Create order" screen so a phone order is priced exactly like an online one.
+     *
+     * @param  array<int, array{type:string,id:string,fmt:?string,qty:int}>  $rows
+     * @return array<int, array>  priced lines (same shape as priced()['lines'])
+     */
+    public static function priceLines(array $rows): array
+    {
+        $norm = [];
+        foreach ($rows as $row) {
+            if ($n = self::normalise($row)) {
+                $n['qty'] = max(1, min(self::ADMIN_MAX_QTY, (int) ($row['qty'] ?? 1)));
+                $norm[]   = $n;
+            }
+        }
+        $products = self::resolve($norm);
+
+        $lines = [];
+        foreach ($norm as $n) {
+            if (isset($products[$n['k']])) {
+                $p       = $products[$n['k']];
+                $lines[] = $p + ['qty' => $n['qty'], 'line' => $p['price'] * $n['qty']];
+            }
+        }
+
+        return $lines;
     }
 
     /**

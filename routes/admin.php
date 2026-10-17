@@ -2,11 +2,15 @@
 
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\BookController;
+use App\Http\Controllers\Admin\CustomerController;
+use App\Http\Controllers\Admin\DeliveryController;
 use App\Http\Controllers\Admin\ExamSetController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\MediaController;
+use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PackageController;
 use App\Http\Controllers\Admin\PaperController;
+use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\TaxonomyController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -22,6 +26,9 @@ use Illuminate\Support\Facades\Route;
 | Module 7: the catalogue pages (books, past papers, exam sets, packages, subjects and levels, media, inventory)
 | are real. Looking is open to every signed-in admin; saving, deleting and uploading also needs admin.catalogue
 | (super admin, manager or editor).
+| Module 8: the sales pages (orders, order, payments, deliveries, customers) are real. Looking is open to every signed-in admin;
+| changing orders, deliveries and customers needs admin.can:sales (super admin, manager or support); handling money
+| (confirm and refund payments, payment methods, delivery fees) needs admin.can:payments (super admin or manager).
 */
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/', fn () => redirect()->route('admin.dashboard'))->name('home');
@@ -105,11 +112,36 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('/inventory/alert', [InventoryController::class, 'alert'])->name('inventory.alert');
         });
 
-        Route::view('/orders', 'admin.orders')->name('orders');
-        Route::view('/order', 'admin.order')->name('order');
-        Route::view('/payments', 'admin.payments')->name('payments');
-        Route::view('/deliveries', 'admin.deliveries')->name('deliveries');
-        Route::view('/customers', 'admin.customers')->name('customers');
+        // ---- Sales (module 8): looking ----
+        Route::get('/orders', [OrderController::class, 'index'])->name('orders');
+        Route::get('/order', [OrderController::class, 'show'])->name('order');
+        Route::get('/payments', [PaymentController::class, 'index'])->name('payments');
+        Route::get('/deliveries', [DeliveryController::class, 'index'])->name('deliveries');
+        Route::get('/customers', [CustomerController::class, 'index'])->name('customers');
+
+        // ---- Sales (module 8): orders, deliveries and customers ----
+        Route::middleware('admin.can:sales')->group(function () {
+            Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
+            Route::post('/orders/bulk', [OrderController::class, 'bulk'])->name('orders.bulk');
+            Route::post('/orders/{order:number}/status', [OrderController::class, 'status'])->name('orders.status');
+            Route::post('/orders/{order:number}/note', [OrderController::class, 'note'])->name('orders.note');
+            Route::post('/orders/{order:number}/courier', [OrderController::class, 'courier'])->name('orders.courier');
+            Route::post('/orders/{order:number}/email', [OrderController::class, 'email'])->name('orders.email');
+            Route::post('/orders/{order:number}/files', [OrderController::class, 'files'])->name('orders.files');
+
+            Route::post('/customers', [CustomerController::class, 'store'])->name('customers.store');
+            Route::post('/customers/{customer}/note', [CustomerController::class, 'note'])->whereNumber('customer')->name('customers.note');
+        });
+
+        // ---- Sales (module 8): money ----
+        Route::middleware('admin.can:payments')->group(function () {
+            Route::post('/orders/{order:number}/payment/verify', [PaymentController::class, 'verify'])->name('payments.verify');
+            Route::post('/orders/{order:number}/payment/refund', [PaymentController::class, 'refund'])->name('payments.refund');
+            Route::put('/payments/methods', [PaymentController::class, 'methods'])->name('payments.methods');
+            Route::post('/payments/reconcile', [PaymentController::class, 'reconcile'])->name('payments.reconcile');
+            Route::put('/deliveries/options', [DeliveryController::class, 'options'])->name('deliveries.options');
+        });
+
         Route::view('/messages', 'admin.messages')->name('messages');
         Route::view('/subscribers', 'admin.subscribers')->name('subscribers');
         Route::view('/testimonials', 'admin.testimonials')->name('testimonials');

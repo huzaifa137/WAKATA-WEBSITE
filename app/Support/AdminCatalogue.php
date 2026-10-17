@@ -226,7 +226,7 @@ class AdminCatalogue
         return $out;
     }
 
-    /** The last 10 weeks: printed stock received (positive adjustments) against units sold. */
+    /** The last 10 weeks: printed stock received (positive adjustments, not stock that came back from a cancelled or refunded order) against units sold. */
     public static function movement(): array
     {
         $weeks = 10;
@@ -237,7 +237,7 @@ class AdminCatalogue
 
         $idx = fn ($ts) => (int) min($weeks - 1, max(0, floor($start->diffInDays(Carbon::parse($ts)->startOfDay(), false) / 7)));
 
-        StockAdjustment::where('created_at', '>=', $start)->where('delta', '>', 0)->get(['delta', 'created_at'])
+        StockAdjustment::where('created_at', '>=', $start)->where('delta', '>', 0)->where('reason', '!=', 'return')->get(['delta', 'created_at'])
             ->each(function ($a) use (&$received, $idx) {
                 $received[$idx($a->created_at)] += $a->delta;
             });

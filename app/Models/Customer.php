@@ -28,7 +28,7 @@ class Customer extends Model
     ];
 
     protected $fillable = [
-        'name', 'email', 'phone', 'type', 'school', 'invoice_name', 'org_address', 'accounts_email', 'password', 'status',
+        'name', 'email', 'phone', 'type', 'school', 'contact_person', 'district', 'admin_note', 'invoice_name', 'org_address', 'accounts_email', 'password', 'status',
         'two_step_enabled', 'preferences',
     ];
 

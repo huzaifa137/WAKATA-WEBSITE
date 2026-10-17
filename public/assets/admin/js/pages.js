@@ -63,50 +63,118 @@
     $('#feed').innerHTML = AD.activity.slice(0, 6).map(a => `<li><span class="fd">${ic(a.icon)}</span><div><p><b>${a.user.name.split(' ')[0]}</b> ${esc(a.verb)} ${a.obj ? '<b>' + esc(a.obj) + '</b>' : ''}</p><small>${AD.rel(a.ts)}</small></div></li>`).join('');
   };
 
+  /* ================= SALES HELPERS (module 8) ================= */
+  /* On the sales pages WK.sales holds the real orders and customers (see admin-data.js). Every change goes to Laravel,
+     which answers with the fresh order (or customer); AD.sales folds it in and the page draws itself again. */
+  const SL = AD.sales, SB = SL ? SL.routes.base : '', CAN = SL ? SL.can : {};
+  const orderHref = o => (SL ? SL.routes.order : 'order.html') + '?id=' + encodeURIComponent(o.id);
+  const customersHref = c => (SL ? SL.routes.customers : 'customers.html') + '?q=' + encodeURIComponent(c);
+  const orderUrl = (o, tail) => SB + '/orders/' + encodeURIComponent(o.id) + tail;
+  const send = (url, method, body) => ADM.send(url, method, body).then(d => { if (d.order) AD.sales.upsertOrder(d.order); (d.orders || []).forEach(x => AD.sales.upsertOrder(x)); if (d.customer) AD.sales.upsertCustomer(d.customer); return d; });
+  const oops = e => toast(esc(e.message), 'err');
+  const lock = (sel, ok, why) => { if (ok) return; $$(sel).forEach(b => { b.disabled = true; b.title = why; }); };
+  const NO_SALES = 'Your role can look at sales but not change them.', NO_PAY = 'Only a super admin or manager can handle payments.';
+  const itemUnits = o => o.items.reduce((a, i) => a + i.qty, 0);
+  const isPhys = o => o.items.some(i => i.fmt !== 'pdf');
+  const closed = o => o.status === 'cancelled' || o.status === 'refunded';
+
   /* ================= ORDERS ================= */
   P.orders = function () {
-    const cnt = AD.byStatus(), rev = AD.sum(AD.within(30), o => o.total);
-    $('#orderStats').innerHTML = [['Orders (30 days)', AD.within(30).length, 'cart', ''], ['Revenue (30 days)', M(rev), 'wallet', 'g'], ['To confirm', cnt.pending, 'alert', 'y'], ['In progress', cnt.confirmed + cnt.processing + cnt.ready + cnt.shipped, 'truck', 'p'], ['Cancelled / refunded', cnt.cancelled + cnt.refunded, 'x', 'r']].map(s => `<div class="card kpi mini"><div class="flex-b"><div><div class="kpi-l">${s[0]}</div><div class="kpi-v">${s[1]}</div></div><span class="kpi-ic ${s[3]}">${ic(s[2])}</span></div></div>`).join('');
+    const stats = () => {
+      const cnt = AD.byStatus(), rev = AD.sum(AD.within(30), o => o.total);
+      $('#orderStats').innerHTML = [['Orders (30 days)', AD.within(30).length, 'cart', ''], ['Revenue (30 days)', M(rev), 'wallet', 'g'], ['To confirm', cnt.pending, 'alert', 'y'], ['In progress', cnt.confirmed + cnt.processing + cnt.ready + cnt.shipped, 'truck', 'p'], ['Cancelled / refunded', cnt.cancelled + cnt.refunded, 'x', 'r']].map(s => `<div class="card kpi mini"><div class="flex-b"><div><div class="kpi-l">${s[0]}</div><div class="kpi-v">${s[1]}</div></div><span class="kpi-ic ${s[3]}">${ic(s[2])}</span></div></div>`).join('');
+    };
+    stats();
     const tabs = [{ k: 'all', label: 'All orders' }, ...Object.keys(OS).map(k => ({ k, label: OS[k].label, fn: o => o.status === k }))];
-    ADM.table('#tbl', {
+    const bulk = (ids, action, status) => send(SB + '/orders/bulk', 'POST', { ids, action, status }).then(d => { S.sel.clear(); stats(); S.render(); toast(esc(d.message)); }).catch(oops);
+    const S = ADM.table('#tbl', {
       rows: () => AD.orders, id: o => o.id, select: true, size: 10, tabs: { items: tabs, default: 'all' }, placeholder: 'Search order, customer, phone…', csvName: 'wakata-orders', sort: 'date', dir: -1,
       search: o => [o.id, o.cust.name, o.cust.phone, o.cust.email, o.txn].join(' '),
       filters: [{ k: 'm', label: 'Payment method', all: 'All payment methods', options: Object.entries(AD.PAY_METHODS), fn: (o, v) => o.method === v }, { k: 'd', label: 'Delivery', all: 'All delivery options', options: Object.entries(AD.DELIVERY).map(([k, v]) => [k, v.label]), fn: (o, v) => o.delivery === v }, { k: 'p', label: 'Payment status', all: 'Any payment status', options: Object.entries(PS).map(([k, v]) => [k, v.label]), fn: (o, v) => o.pay === v }],
       cols: [
-        { k: 'id', label: 'Order', sort: o => o.id, html: o => `<a class="link-row" href="order.html?id=${o.id}">${o.id}</a>`, csv: o => o.id },
+        { k: 'id', label: 'Order', sort: o => o.id, html: o => `<a class="link-row" href="${orderHref(o)}">${o.id}</a>${o.source === 'manual' ? '<div class="xs muted">Phone / walk-in</div>' : ''}`, csv: o => o.id },
         { k: 'date', label: 'Date', sort: o => o.ts, html: o => `${AD.fmtDate(o.ts)}<div class="xs muted">${AD.fmtTime(o.ts)}</div>`, csv: o => AD.fmtDate(o.ts) },
-        { k: 'cust', label: 'Customer', sort: o => o.cust.name, html: o => `<div class="flex">${av(o.cust.name)}<div><b>${esc(o.cust.name)}</b><div class="xs muted">${o.cust.type} · ${o.cust.phone}</div></div></div>`, csv: o => o.cust.name },
-        { k: 'items', label: 'Items', sort: o => o.items.length, html: o => `${o.items.length} line${o.items.length > 1 ? 's' : ''}, ${o.items.reduce((a, i) => a + i.qty, 0)} units<div class="flex" style="gap:.3rem;margin-top:.2rem">${[...new Set(o.items.map(i => i.fmt === 'pdf' ? 'pdf' : 'print'))].map(fmtTag).join('')}</div>`, csv: o => o.items.map(i => i.qty + 'x ' + i.title).join('; ') },
+        { k: 'cust', label: 'Customer', sort: o => o.cust.name, html: o => `<div class="flex">${av(o.cust.name)}<div><b>${esc(o.cust.name)}</b><div class="xs muted">${o.cust.type} · ${esc(o.cust.phone)}</div></div></div>`, csv: o => o.cust.name },
+        { k: 'items', label: 'Items', sort: o => o.items.length, html: o => `${o.items.length} line${o.items.length > 1 ? 's' : ''}, ${itemUnits(o)} units<div class="flex" style="gap:.3rem;margin-top:.2rem">${[...new Set(o.items.map(i => i.fmt === 'pdf' ? 'pdf' : 'print'))].map(fmtTag).join('')}</div>`, csv: o => o.items.map(i => i.qty + 'x ' + i.title).join('; ') },
         { k: 'total', label: 'Total', num: true, sort: o => o.total, html: o => `<b>${M(o.total)}</b>`, csv: o => o.total },
-        { k: 'pay', label: 'Payment', sort: o => o.pay, html: o => `<div class="xs muted" style="margin-bottom:.2rem">${AD.PAY_METHODS[o.method]}</div>${pBadge(o.pay)}`, csv: o => AD.PAY_METHODS[o.method] + ' / ' + PS[o.pay].label },
-        { k: 'del', label: 'Delivery', html: o => AD.DELIVERY[o.delivery].label, csv: o => AD.DELIVERY[o.delivery].label },
+        { k: 'pay', label: 'Payment', sort: o => o.pay, html: o => `<div class="xs muted" style="margin-bottom:.2rem">${esc(AD.PAY_METHODS[o.method] || o.method)}</div>${pBadge(o.pay)}`, csv: o => (AD.PAY_METHODS[o.method] || o.method) + ' / ' + PS[o.pay].label },
+        { k: 'del', label: 'Delivery', html: o => esc((AD.DELIVERY[o.delivery] || {}).label || o.delivery), csv: o => (AD.DELIVERY[o.delivery] || {}).label || o.delivery },
         { k: 'status', label: 'Status', sort: o => o.status, html: o => sBadge(o.status), csv: o => OS[o.status].label }],
-      actions: o => `<div class="row-actions"><a class="btn btn-ic" href="order.html?id=${o.id}" title="View order" aria-label="View order">${ic('eye')}</a><button class="btn btn-ic" type="button" data-act="print" title="Print invoice">${ic('print')}</button></div>`,
-      bulk: [{ label: 'Mark as confirmed' }, { label: 'Mark as processing' }, { label: 'Print packing slips', act: () => window.print() }, { label: 'Email customers' }],
-      rowHref: o => 'order.html?id=' + o.id
+      actions: o => `<div class="row-actions"><a class="btn btn-ic" href="${orderHref(o)}" title="View order" aria-label="View order">${ic('eye')}</a><button class="btn btn-ic" type="button" data-act="print" title="Print invoice">${ic('print')}</button></div>`,
+      bulk: [{ label: 'Mark as confirmed', act: ids => bulk(ids, 'status', 'confirmed') }, { label: 'Mark as processing', act: ids => bulk(ids, 'status', 'processing') }, { label: 'Print packing slips', act: () => window.print() }, { label: 'Email customers', act: ids => bulk(ids, 'email') }],
+      rowHref: orderHref
+    });
+
+    /* Create an order manually (phone and walk-in) */
+    const items = (SL && SL.items) || {};
+    const sync = () => {
+      const t = $('#nt').value, list = items[t] || [];
+      $('#niList').innerHTML = list.map(x => `<option value="${esc(x.label)}"></option>`).join('');
+      const paper = t === 'paper'; $('#nf').disabled = !paper; if (!paper) $('#nf').value = 'print';
+      const pdfOnly = paper && $('#nf').value === 'pdf';
+      $('#nd').closest('.field').hidden = pdfOnly; $('#naField').hidden = pdfOnly || $('#nd').value === 'pickup';
+    };
+    ['#nt', '#nf', '#nd'].forEach(s => $(s).addEventListener('change', sync)); $('#nt').addEventListener('change', () => { $('#ni').value = ''; sync(); }); sync();
+    lock('#newOrderBtn', CAN.sales, NO_SALES);
+    $('#newOrderSave').addEventListener('click', () => {
+      const t = $('#nt').value, label = $('#ni').value.trim(), it = (items[t] || []).find(x => x.label === label);
+      let ok = true; const bad = (sel, b) => { const f = $(sel).closest('.field'); f.classList.toggle('bad', b); if (b && ok) { ok = false; $(sel).focus(); } };
+      bad('#nc', !$('#nc').value.trim()); bad('#np', !$('#np').value.trim()); bad('#ni', !it);
+      if (!ok) { toast('Please fix the highlighted fields.', 'err'); return; }
+      const pdfOnly = t === 'paper' && $('#nf').value === 'pdf', btn = $('#newOrderSave'); btn.disabled = true;
+      send(SB + '/orders', 'POST', { name: $('#nc').value.trim(), phone: $('#np').value.trim(), email: $('#ne').value.trim() || null, type: t, item: it.id, fmt: t === 'paper' ? $('#nf').value : null, qty: Number($('#nq').value || 1), delivery: pdfOnly ? null : $('#nd').value, address: $('#na').value.trim() || null, pay: $('#npm').value })
+        .then(d => { ADM.close($('#newOrder')); ['#nc', '#np', '#ne', '#ni', '#na'].forEach(s => { $(s).value = ''; }); $('#nq').value = 1; stats(); S.render(); toast(esc(d.message)); })
+        .catch(oops).finally(() => { btn.disabled = false; });
     });
   };
 
   /* ================= ORDER DETAIL ================= */
   P.order = function () {
-    const id = ADM.qs('id'), o = AD.orders.find(x => x.id === id) || AD.orders[0], c = o.cust, phys = o.items.some(i => i.fmt !== 'pdf'), hasPdf = o.items.some(i => i.fmt === 'pdf');
-    document.title = o.id + ' | WAKATA Admin'; $('[data-ref]').textContent = o.id; $('[data-ref-crumb]').textContent = o.id;
-    $('#oMeta').innerHTML = `Placed ${AD.fmtDate(o.ts)} at ${AD.fmtTime(o.ts)} · ${sBadge(o.status)} ${pBadge(o.pay)}`;
-    const steps = phys ? ['Placed', 'Confirmed', 'Processing', o.delivery === 'pickup' ? 'Ready for pickup' : 'Out for delivery', 'Completed'] : ['Placed', 'Paid', 'PDF emailed'];
-    const idx = phys ? { pending: 0, confirmed: 1, processing: 2, ready: 3, shipped: 3, completed: 4 }[o.status] : (o.status === 'completed' ? 2 : o.pay === 'paid' ? 1 : 0);
-    $('#stepper').innerHTML = (o.status === 'cancelled' || o.status === 'refunded') ? `<div class="callout" style="width:100%">${ic('alert')}<div>This order was <b>${OS[o.status].label.toLowerCase()}</b>. ${o.status === 'refunded' ? 'The payment has been returned to the customer.' : 'No payment was collected.'}</div></div>` : steps.map((s, i) => `<div class="st ${i < idx || (i === idx && o.status === 'completed') ? 'done' : i === idx ? 'cur' : ''}"><i>${i < idx || (i === idx && o.status === 'completed') ? '✓' : i + 1}</i>${s}</div>`).join('');
-    $('#oItems').innerHTML = o.items.map(i => `<tr><td><div class="cell-prod">${AD.thumbById(i.type, i.id)}<div><b>${esc(i.title)}</b><small>${AD.TYPE_LABEL[i.type]} · ${LV[i.level] || ''}${i.subject ? ' · ' + i.subject : ''}</small>${i.fmt ? '<div style="margin-top:.25rem">' + fmtTag(i.fmt) + '</div>' : ''}</div></div></td><td class="num">${M(i.price)}</td><td class="num">${i.qty}</td><td class="num b">${M(i.price * i.qty)}</td></tr>`).join('');
-    $('#oTotals').innerHTML = `<div><span>Subtotal</span><span>${M(o.sub)}</span></div><div><span>Delivery (${AD.DELIVERY[o.delivery].label})</span><span>${o.fee ? M(o.fee) : 'Free'}</span></div><div><span>Discount</span><span>UGX 0</span></div><div class="tot"><span>Total</span><span>${M(o.total)}</span></div>`;
-    $('#oStatus').innerHTML = Object.keys(OS).map(k => `<option value="${k}"${k === o.status ? ' selected' : ''}>${OS[k].label}</option>`).join('');
-    $('#oCust').innerHTML = `<div class="flex" style="margin-bottom:.9rem">${av(c.name, 2)}<div><b>${esc(c.name)}</b><div class="xs muted">${c.type}${c.contact ? ' · ' + c.contact : ''}</div></div></div><dl class="dl"><dt>Phone</dt><dd><a href="tel:${c.phone}">${c.phone}</a></dd><dt>Email</dt><dd><a href="mailto:${c.email}">${esc(c.email)}</a></dd><dt>District</dt><dd>${c.district}</dd><dt>Orders</dt><dd>${c.orders} so far · ${M(c.spent)}</dd></dl><div class="flex mt-s wrapf"><a class="btn btn-line btn-sm" href="https://wa.me/${c.phone.replace(/\D/g, '')}" target="_blank" rel="noopener">${ic('whatsapp')}WhatsApp</a><a class="btn btn-line btn-sm" href="customers.html?q=${encodeURIComponent(c.name)}">${ic('users')}Customer profile</a></div>`;
-    $('#oDelivery').innerHTML = phys ? `<dl class="dl"><dt>Method</dt><dd>${AD.DELIVERY[o.delivery].label}</dd><dt>Expected</dt><dd>${AD.DELIVERY[o.delivery].eta}</dd>${o.delivery !== 'pickup' ? `<dt>Deliver to</dt><dd>${esc(c.name)}, ${c.district}</dd><dt>Courier / rider</dt><dd><input class="inline-edit" placeholder="Add courier or tracking note" style="border-color:var(--line)"></dd>` : '<dt>Collect from</dt><dd>WAKATA shop, Bat Valley Primary School</dd>'}</dl>` : `<p class="muted mb0">Only PDF items. Files are emailed after payment, so no delivery is needed.</p>`;
-    $('#oPay').innerHTML = `<dl class="dl"><dt>Method</dt><dd>${AD.PAY_METHODS[o.method]}</dd><dt>Status</dt><dd>${pBadge(o.pay)}</dd><dt>Amount</dt><dd>${M(o.total)}</dd>${o.txn ? `<dt>Transaction</dt><dd>${o.txn} <button class="btn btn-ic" style="width:26px;height:26px" type="button" data-copy="${o.txn}" aria-label="Copy">${ic('copy')}</button></dd><dt>Paid from</dt><dd>${c.phone}</dd>` : '<dt>Collect cash</dt><dd>On pickup at the shop</dd>'}</dl>${o.pay === 'pending' ? `<button class="btn btn-primary btn-sm mt-s" type="button" data-toast="Payment marked as received (preview).">${ic('check')}Mark payment received</button>` : ''}`;
-    const pdfs = o.items.filter(i => i.fmt === 'pdf');
-    if (hasPdf) { $('#oPdf').hidden = false; $('#oPdfList').innerHTML = pdfs.map(i => `<div class="filechip" style="margin-bottom:.5rem"><span class="fi">PDF</span><div><b>${esc(i.title)}</b><small>${o.pay === 'paid' ? 'Link emailed ' + AD.fmtDate(o.ts) + ' · downloaded ' + (1 + (i.qty % 3)) + ' time(s)' : 'Waiting for payment'}</small></div><button class="btn btn-line btn-sm" type="button" data-toast="PDF link resent to ${esc(c.email)} (preview).">Resend</button></div>`).join(''); }
-    $('#oNote').value = o.note || '';
-    const tl = [[o.ts, 'Order placed by customer', 'Online checkout']]; if (o.pay === 'paid') tl.push([o.ts + 6e4 * 4, 'Payment received', AD.PAY_METHODS[o.method]]); if (idx >= 1 && phys) tl.push([o.ts + 36e5, 'Order confirmed', 'By Brenda Achieng']); if (idx >= 2 && phys) tl.push([o.ts + 36e5 * 5, 'Packed and processed', 'Printing and packing complete']); if (idx >= 3 && phys) tl.push([o.ts + 36e5 * 20, o.delivery === 'pickup' ? 'Ready for pickup' : 'Handed to courier', '']); if (o.status === 'completed') tl.push([o.ts + 36e5 * 30, phys ? 'Delivered / collected' : 'PDF emailed to customer', '']); if (o.status === 'cancelled') tl.push([o.ts + 36e5 * 8, 'Order cancelled', 'Payment not completed']); if (o.status === 'refunded') tl.push([o.ts + 36e5 * 60, 'Refund issued', 'Returned via ' + AD.PAY_METHODS[o.method]]);
-    $('#oTimeline').innerHTML = tl.reverse().map(t => `<li><b>${t[1]}</b><small>${AD.fmtDate(t[0])} ${AD.fmtTime(t[0])}${t[2] ? ' · ' + t[2] : ''}</small></li>`).join('');
-    $('#oSave').addEventListener('click', () => { const v = $('#oStatus').value; toast('Status changed to “' + OS[v].label + '”. Design preview, nothing is saved yet.'); });
+    const id = ADM.qs('id'), o = AD.orders.find(x => x.id === id);
+    if (!o) { $('main').innerHTML = `<div class="pagehead"><div><h1>Order not found</h1><p>There is no order ${esc(id || '')}.</p></div></div><p><a class="btn btn-line" href="${SL.routes.orders}">Back to orders</a></p>`; return; }
+    const act = (tail, body, then) => send(orderUrl(o, tail), 'POST', body).then(d => { draw(); toast(esc(d.message)); if (then) then(d); }).catch(e => { toast(esc(e.message), 'err'); });
+    function draw() {
+      const c = o.cust, phys = isPhys(o), hasPdf = o.items.some(i => i.fmt === 'pdf'), dl = AD.DELIVERY[o.delivery] || { label: o.delivery, eta: '' };
+      document.title = o.id + ' | WAKATA Admin'; $('[data-ref]').textContent = o.id; $('[data-ref-crumb]').textContent = o.id;
+      $('#oMeta').innerHTML = `Placed ${AD.fmtDate(o.ts)} at ${AD.fmtTime(o.ts)}${o.source === 'manual' ? ' (phone / walk-in)' : ''} · ${sBadge(o.status)} ${pBadge(o.pay)}`;
+      const steps = phys ? ['Placed', 'Confirmed', 'Processing', o.delivery === 'pickup' ? 'Ready for pickup' : 'Out for delivery', 'Completed'] : ['Placed', 'Paid', 'PDF in library'];
+      const idx = phys ? { pending: 0, confirmed: 1, processing: 2, ready: 3, shipped: 3, completed: 4 }[o.status] : (o.status === 'completed' ? 2 : o.pay === 'paid' ? 1 : 0);
+      $('#stepper').innerHTML = closed(o) ? `<div class="callout" style="width:100%">${ic('alert')}<div>This order was <b>${OS[o.status].label.toLowerCase()}</b>. ${o.status === 'refunded' ? 'The payment has been returned to the customer.' : 'No payment was collected.'}</div></div>` : steps.map((s, i) => `<div class="st ${i < idx || (i === idx && o.status === 'completed') ? 'done' : i === idx ? 'cur' : ''}"><i>${i < idx || (i === idx && o.status === 'completed') ? '✓' : i + 1}</i>${s}</div>`).join('');
+      $('#oItems').innerHTML = o.items.map(i => `<tr><td><div class="cell-prod">${AD.thumbById(i.type, i.id)}<div><b>${esc(i.title)}</b><small>${AD.TYPE_LABEL[i.type]} · ${LV[i.level] || String(i.level || '').toUpperCase()}${i.subject ? ' · ' + esc(i.subject) : ''}</small>${i.fmt ? '<div style="margin-top:.25rem">' + fmtTag(i.fmt) + '</div>' : ''}</div></div></td><td class="num">${M(i.price)}</td><td class="num">${i.qty}</td><td class="num b">${M(i.price * i.qty)}</td></tr>`).join('');
+      $('#oTotals').innerHTML = `<div><span>Subtotal</span><span>${M(o.sub)}</span></div><div><span>Delivery (${esc(dl.label)})</span><span>${o.fee ? M(o.fee) : 'Free'}</span></div><div class="tot"><span>Total</span><span>${M(o.total)}</span></div>`;
+      $('#oStatus').innerHTML = Object.keys(OS).map(k => `<option value="${k}"${k === o.status ? ' selected' : ''}>${OS[k].label}</option>`).join('');
+      const phone = String(c.phone || '').replace(/\D/g, '');
+      $('#oCust').innerHTML = `<div class="flex" style="margin-bottom:.9rem">${av(c.name, 2)}<div><b>${esc(c.name)}</b><div class="xs muted">${c.type}${c.contact ? ' · ' + esc(c.contact) : ''}</div></div></div><dl class="dl"><dt>Phone</dt><dd><a href="tel:${esc(c.phone)}">${esc(c.phone)}</a></dd><dt>Email</dt><dd>${c.email ? `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : '<span class="muted">None</span>'}</dd>${c.district ? `<dt>District</dt><dd>${esc(c.district)}</dd>` : ''}<dt>Orders</dt><dd>${c.orders} so far · ${M(c.spent)}</dd></dl><div class="flex mt-s wrapf">${phone ? `<a class="btn btn-line btn-sm" href="https://wa.me/${phone}" target="_blank" rel="noopener">${ic('whatsapp')}WhatsApp</a>` : ''}<a class="btn btn-line btn-sm" href="${customersHref(c.name)}">${ic('users')}Customer profile</a></div>${o.note ? `<div class="callout mt-s">${ic('alert')}<div><b>Customer note:</b> ${esc(o.note)}</div></div>` : ''}`;
+      $('#oDelivery').innerHTML = phys ? `<dl class="dl"><dt>Method</dt><dd>${esc(dl.label)}</dd><dt>Expected</dt><dd>${esc(dl.eta)}</dd>${o.delivery !== 'pickup' ? `<dt>Deliver to</dt><dd>${o.address ? esc(o.address).replace(/\n/g, '<br>') : esc(c.name)}</dd><dt>Courier / rider</dt><dd><input class="inline-edit" id="oCourier" maxlength="255" value="${esc(o.courier)}" placeholder="Add courier or tracking note" style="border-color:var(--line)"></dd>` : '<dt>Collect from</dt><dd>WAKATA shop, Bat Valley Primary School</dd>'}</dl>${o.delivery !== 'pickup' ? `<button class="btn btn-line btn-sm mt-s" type="button" id="oCourierSave">Save delivery note</button>` : ''}` : `<p class="muted mb0">Only PDF items. The files are in the customer's library once the order is paid, so no delivery is needed.</p>`;
+      const pending = o.pay === 'pending' && !closed(o), cash = o.method === 'cash';
+      $('#oPay').innerHTML = `<dl class="dl"><dt>Method</dt><dd>${esc(AD.PAY_METHODS[o.method] || o.method)}</dd><dt>Status</dt><dd>${pBadge(o.pay)}</dd><dt>Amount</dt><dd>${M(o.total)}</dd>${o.txn ? `<dt>Transaction</dt><dd>${esc(o.txn)} <button class="btn btn-ic" style="width:26px;height:26px" type="button" data-copy="${esc(o.txn)}" aria-label="Copy">${ic('copy')}</button></dd>` : (cash ? '<dt>Collect cash</dt><dd>On pickup at the shop</dd>' : '')}${o.paidTs ? `<dt>Paid</dt><dd>${AD.fmtDate(o.paidTs)} ${AD.fmtTime(o.paidTs)}</dd>` : ''}</dl>${pending && !cash && !o.txn ? `<div class="field mt-s"><label for="oRef">Transaction reference (optional)</label><input id="oRef" maxlength="60" placeholder="e.g. MTN12345678"></div>` : ''}${pending ? `<button class="btn btn-primary btn-sm mt-s" type="button" id="oPaid">${ic('check')}${cash ? 'Mark cash received' : 'Mark payment received'}</button>` : ''}${o.pay === 'paid' && !closed(o) ? `<button class="btn btn-line btn-sm mt-s" type="button" id="oRefund">${ic('refresh')}Refund payment</button>` : ''}`;
+      const pdfs = o.items.filter(i => i.fmt === 'pdf');
+      $('#oPdf').hidden = !hasPdf;
+      if (hasPdf) $('#oPdfList').innerHTML = pdfs.map(i => `<div class="filechip" style="margin-bottom:.5rem"><span class="fi">PDF</span><div><b>${esc(i.title)}</b><small>${o.pay === 'paid' && !closed(o) ? 'In the customer’s library · ' + o.downloads + ' download(s) used' + (o.emailedTs ? ' · emailed ' + AD.fmtDate(o.emailedTs) : '') : 'Waiting for payment'}</small></div></div>`).join('') + (o.pay === 'paid' && !closed(o) ? `<button class="btn btn-line btn-sm" type="button" id="oResend">${ic('send')}Email the files again</button>` : '');
+      $('#oNote').value = o.adminNote || '';
+      $('#oTimeline').innerHTML = o.events.slice().reverse().map(t => `<li><b>${esc(t.label)}</b><small>${AD.fmtDate(t.ts)} ${AD.fmtTime(t.ts)}${t.note ? ' · ' + esc(t.note) : ''}</small></li>`).join('');
+      const sv = $('#oSave'); sv.disabled = !CAN.sales || closed(o); sv.title = closed(o) ? 'This order is closed.' : (CAN.sales ? '' : NO_SALES);
+      $('#oStatus').disabled = sv.disabled; $('#oCancel').disabled = !CAN.sales || closed(o);
+      lock('#oEmail,#oNoteSave,#oCourierSave,#oCourier', CAN.sales, NO_SALES); lock('#oPaid,#oRefund', CAN.payments, NO_PAY);
+      if (!CAN.sales) $('#oNote').readOnly = true;
+      if (!o.cust.email) $('#oEmail').disabled = true;
+    }
+    draw();
+    const body = $('main');
+    body.addEventListener('click', e => {
+      const t = e.target, g = s => t.closest(s);
+      if (g('#oSave')) act('/status', { status: $('#oStatus').value, notify: $('#oNotify').checked });
+      else if (g('#oCancel')) {
+        if (o.pay === 'paid') ADM.confirm({ title: 'Refund and close this order?', text: 'This order is paid, so it cannot just be cancelled. The payment is recorded as refunded and the order is closed.', ok: 'Refund order', icon: 'refresh', onOk: () => send(orderUrl(o, '/payment/refund'), 'POST', {}).then(d => { draw(); toast(esc(d.message)); }).catch(oops) });
+        else ADM.confirm({ title: 'Cancel this order?', text: $('#oNotify').checked && o.cust.email ? 'The customer will be emailed.' : 'The customer will not be emailed.', ok: 'Cancel order', onOk: () => act('/status', { status: 'cancelled', notify: $('#oNotify').checked }) });
+      }
+      else if (g('#oEmail')) act('/email', {});
+      else if (g('#oNoteSave')) act('/note', { admin_note: $('#oNote').value });
+      else if (g('#oCourierSave')) act('/courier', { courier_note: $('#oCourier').value });
+      else if (g('#oPaid')) send(orderUrl(o, '/payment/verify'), 'POST', { reference: ($('#oRef') || {}).value || null }).then(d => { draw(); toast(esc(d.message)); }).catch(oops);
+      else if (g('#oRefund')) ADM.confirm({ title: 'Refund ' + M(o.total) + '?', text: 'The payment is recorded as refunded via ' + (AD.PAY_METHODS[o.method] || o.method) + ' and the order is closed. Send the money back yourself first.', ok: 'Refund', icon: 'refresh', onOk: () => send(orderUrl(o, '/payment/refund'), 'POST', {}).then(d => { draw(); toast(esc(d.message)); }).catch(oops) });
+      else if (g('#oResend')) act('/files', {});
+    });
   };
 
   /* ================= BOOKS ================= */
@@ -301,51 +369,110 @@
 
   /* ================= CUSTOMERS ================= */
   P.customers = function () {
-    const types = ['School', 'Teacher', 'Parent', 'Bookshop'], tot = AD.sum(AD.customers, c => c.spent);
-    $('#custStats').innerHTML = [['Customers', AD.customers.length, 'users', ''], ['Schools and bookshops', AD.customers.filter(c => c.type === 'School' || c.type === 'Bookshop').length, 'school', 'y'], ['Repeat customers', AD.customers.filter(c => c.orders > 1).length, 'refresh', 'g'], ['Lifetime sales', M(tot), 'wallet', 'p']].map(s => `<div class="card kpi mini"><div class="flex-b"><div><div class="kpi-l">${s[0]}</div><div class="kpi-v">${s[1]}</div></div><span class="kpi-ic ${s[3]}">${ic(s[2])}</span></div></div>`).join('');
-    const top = AD.customers.slice().sort((a, b) => b.spent - a.spent).slice(0, 8); C.bar('#chTopCust', { labels: top.map(c => c.name), series: [{ name: 'Lifetime sales', data: top.map(c => c.spent), color: 'var(--c1)' }], horizontal: true, tipFmt: M, height: 300 });
-    const bt = {}; AD.customers.forEach(c => bt[c.type] = (bt[c.type] || 0) + c.spent); C.donut('#chCustType', { items: types.map((t, i) => ({ name: t + 's', value: bt[t] || 0, color: colors[[0, 2, 3, 1][i]] })), centerLabel: 'Lifetime sales', tipFmt: M, size: 170 });
-    ADM.table('#tbl', {
+    const types = ['School', 'Teacher', 'Parent', 'Bookshop'], typeBadge = t => t === 'School' ? 'b-info' : t === 'Bookshop' ? 'b-pur' : 'b-mute';
+    const paint = () => {
+      const tot = AD.sum(AD.customers, c => c.spent);
+      $('#custStats').innerHTML = [['Customers', AD.customers.length, 'users', ''], ['Schools and bookshops', AD.customers.filter(c => c.type === 'School' || c.type === 'Bookshop').length, 'school', 'y'], ['Repeat customers', AD.customers.filter(c => c.orders > 1).length, 'refresh', 'g'], ['Lifetime sales', M(tot), 'wallet', 'p']].map(s => `<div class="card kpi mini"><div class="flex-b"><div><div class="kpi-l">${s[0]}</div><div class="kpi-v">${s[1]}</div></div><span class="kpi-ic ${s[3]}">${ic(s[2])}</span></div></div>`).join('');
+      const top = AD.customers.slice().sort((a, b) => b.spent - a.spent).slice(0, 8).filter(c => c.spent > 0);
+      if (top.length) C.bar('#chTopCust', { labels: top.map(c => c.name), series: [{ name: 'Lifetime sales', data: top.map(c => c.spent), color: 'var(--c1)' }], horizontal: true, tipFmt: M, height: 300 }); else $('#chTopCust').innerHTML = '<p class="muted">No paid orders yet.</p>';
+      const bt = {}; AD.customers.forEach(c => bt[c.type] = (bt[c.type] || 0) + c.spent);
+      const groups = [...types, 'Guest'].filter(t => bt[t] > 0);
+      if (groups.length) C.donut('#chCustType', { items: groups.map((t, i) => ({ name: t + 's', value: bt[t] || 0, color: colors[[0, 2, 3, 1, 4][types.indexOf(t) < 0 ? 4 : types.indexOf(t)]] })), centerLabel: 'Lifetime sales', tipFmt: M, size: 170 }); else $('#chCustType').innerHTML = '<p class="muted">No paid orders yet.</p>';
+    };
+    paint();
+    const districts = () => [...new Set(AD.customers.map(c => c.district).filter(Boolean))].sort().map(d => [d, d]);
+    const S = ADM.table('#tbl', {
       rows: () => AD.customers, id: c => c.id, select: true, size: 10, csvName: 'wakata-customers', placeholder: 'Search name, phone, email…', q0: ADM.qs('q') || '', sort: 'spent', dir: -1,
-      tabs: { items: [{ k: 'all', label: 'All customers' }, ...types.map(t => ({ k: t, label: t + 's', fn: c => c.type === t })), { k: 'rep', label: 'Repeat buyers', fn: c => c.orders > 1 }] },
+      tabs: { items: [{ k: 'all', label: 'All customers' }, ...types.map(t => ({ k: t, label: t + 's', fn: c => c.type === t })), { k: 'Guest', label: 'Guests', fn: c => c.type === 'Guest' }, { k: 'rep', label: 'Repeat buyers', fn: c => c.orders > 1 }] },
       search: c => [c.name, c.phone, c.email, c.district, c.id].join(' '),
-      filters: [{ k: 'd', label: 'District', all: 'All districts', options: ['Kampala', 'Wakiso', 'Mukono', 'Entebbe', 'Jinja', 'Mpigi', 'Masaka', 'Gulu'].map(d => [d, d]), fn: (c, v) => c.district === v }],
-      cols: [{ k: 'n', label: 'Customer', sort: c => c.name, html: c => `<div class="flex">${av(c.name)}<div><a href="#" class="link-row" data-act="view">${esc(c.name)}</a><div class="xs muted">${c.id}${c.contact ? ' · ' + c.contact : ''}</div></div></div>`, csv: c => c.name }, { k: 't', label: 'Type', sort: c => c.type, html: c => `<span class="badge nodot ${c.type === 'School' ? 'b-info' : c.type === 'Bookshop' ? 'b-pur' : 'b-mute'}">${c.type}</span>` }, { k: 'c', label: 'Contact', html: c => `${c.phone}<div class="xs muted">${esc(c.email)}</div>`, csv: c => c.phone + ' ' + c.email }, { k: 'd', label: 'District', sort: c => c.district, html: c => c.district }, { k: 'o', label: 'Orders', num: true, sort: c => c.orders, html: c => c.orders }, { k: 'spent', label: 'Lifetime spend', num: true, sort: c => c.spent, html: c => `<b>${M(c.spent)}</b>`, csv: c => c.spent }, { k: 'last', label: 'Last order', sort: c => c.lastTs, html: c => c.lastTs ? AD.fmtDate(c.lastTs) : '—' }],
-      actions: c => `<div class="row-actions"><button class="btn btn-ic" type="button" data-act="view" aria-label="View customer">${ic('eye')}</button><a class="btn btn-ic" href="mailto:${c.email}" aria-label="Email">${ic('mail')}</a></div>`,
-      bulk: [{ label: 'Email selected' }, { label: 'Add to newsletter' }],
-      onAct: (a, c) => { if (a !== 'view') return false; const os = AD.orders.filter(o => o.custId === c.id).slice(0, 5); ADM.drawer('Customer profile', `<div class="flex" style="margin-bottom:1.1rem"><span class="avatar lg av-${c.name.length % 6 + 1}">${AD.initials(c.name)}</span><div><h3 style="margin:0">${esc(c.name)}</h3><span class="muted">${c.type}${c.contact ? ' · ' + c.contact : ''}</span><div class="xs muted">Customer since ${AD.fmtDate(c.joined)}</div></div></div><div class="cols-3" style="margin-bottom:1.2rem"><div class="card kpi mini"><div class="kpi-l">Orders</div><div class="kpi-v">${c.orders}</div></div><div class="card kpi mini"><div class="kpi-l">Spent</div><div class="kpi-v" style="font-size:1rem">${M(c.spent)}</div></div><div class="card kpi mini"><div class="kpi-l">Average</div><div class="kpi-v" style="font-size:1rem">${M(c.orders ? Math.round(c.spent / c.orders) : 0)}</div></div></div><dl class="dl" style="margin-bottom:1.2rem"><dt>Phone</dt><dd><a href="tel:${c.phone}">${c.phone}</a></dd><dt>Email</dt><dd>${esc(c.email)}</dd><dt>District</dt><dd>${c.district}</dd></dl><h4>Recent orders</h4><table class="mini-table"><thead><tr><th>Order</th><th>Date</th><th>Status</th><th class="num">Total</th></tr></thead><tbody>${os.map(o => `<tr><td><a href="order.html?id=${o.id}">${o.id}</a></td><td>${AD.fmtDate(o.ts)}</td><td>${sBadge(o.status)}</td><td class="num">${M(o.total)}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">No orders yet</td></tr>'}</tbody></table><div class="field mt"><label for="cnote">Internal note</label><textarea id="cnote" placeholder="e.g. Bursar prefers delivery on Fridays"></textarea></div>`, `<a class="btn btn-line" href="mailto:${c.email}">${ic('mail')}Email</a><a class="btn btn-line" href="https://wa.me/${c.phone.replace(/\D/g, '')}" target="_blank" rel="noopener">${ic('whatsapp')}WhatsApp</a><button class="btn btn-primary" type="button" data-toast="Note saved (preview).">Save note</button>`); return true; }
+      filters: [{ k: 'd', label: 'District', all: 'All districts', options: districts(), fn: (c, v) => c.district === v }],
+      cols: [{ k: 'n', label: 'Customer', sort: c => c.name, html: c => `<div class="flex">${av(c.name)}<div><a href="#" class="link-row" data-act="view">${esc(c.name)}</a><div class="xs muted">${c.id}${c.contact ? ' · ' + esc(c.contact) : ''}</div></div></div>`, csv: c => c.name }, { k: 't', label: 'Type', sort: c => c.type, html: c => `<span class="badge nodot ${typeBadge(c.type)}">${c.type}</span>` }, { k: 'c', label: 'Contact', html: c => `${esc(c.phone || '—')}<div class="xs muted">${esc(c.email)}</div>`, csv: c => (c.phone || '') + ' ' + c.email }, { k: 'd', label: 'District', sort: c => c.district, html: c => esc(c.district || '—') }, { k: 'o', label: 'Orders', num: true, sort: c => c.orders, html: c => c.orders }, { k: 'spent', label: 'Lifetime spend', num: true, sort: c => c.spent, html: c => `<b>${M(c.spent)}</b>`, csv: c => c.spent }, { k: 'last', label: 'Last order', sort: c => c.lastTs, html: c => c.lastTs ? AD.fmtDate(c.lastTs) : '—' }],
+      actions: c => `<div class="row-actions"><button class="btn btn-ic" type="button" data-act="view" aria-label="View customer">${ic('eye')}</button>${c.email ? `<a class="btn btn-ic" href="mailto:${esc(c.email)}" aria-label="Email">${ic('mail')}</a>` : ''}</div>`,
+      bulk: [{ label: 'Email selected', act: ids => { const mails = AD.customers.filter(c => ids.includes(c.id) && c.email).map(c => c.email); if (!mails.length) { toast('None of the selected customers has an email.', 'err'); return; } location.href = 'mailto:?bcc=' + encodeURIComponent(mails.join(',')); } }],
+      onAct: (a, c) => {
+        if (a !== 'view') return false;
+        const os = AD.orders.filter(o => o.custId === c.id).slice(0, 5), phone = String(c.phone || '').replace(/\D/g, '');
+        ADM.drawer('Customer profile', `<div class="flex" style="margin-bottom:1.1rem"><span class="avatar lg av-${c.name.length % 6 + 1}">${AD.initials(c.name)}</span><div><h3 style="margin:0">${esc(c.name)}</h3><span class="muted">${c.type}${c.contact ? ' · ' + esc(c.contact) : ''}</span><div class="xs muted">Customer since ${AD.fmtDate(c.joined)}</div></div></div><div class="cols-3" style="margin-bottom:1.2rem"><div class="card kpi mini"><div class="kpi-l">Orders</div><div class="kpi-v">${c.orders}</div></div><div class="card kpi mini"><div class="kpi-l">Spent</div><div class="kpi-v" style="font-size:1rem">${M(c.spent)}</div></div><div class="card kpi mini"><div class="kpi-l">Average</div><div class="kpi-v" style="font-size:1rem">${M(c.orders ? Math.round(c.spent / c.orders) : 0)}</div></div></div><dl class="dl" style="margin-bottom:1.2rem"><dt>Phone</dt><dd>${c.phone ? `<a href="tel:${esc(c.phone)}">${esc(c.phone)}</a>` : '—'}</dd><dt>Email</dt><dd>${esc(c.email || '—')}</dd><dt>District</dt><dd>${esc(c.district || '—')}</dd></dl><h4>Recent orders</h4><table class="mini-table"><thead><tr><th>Order</th><th>Date</th><th>Status</th><th class="num">Total</th></tr></thead><tbody>${os.map(o => `<tr><td><a href="${orderHref(o)}">${o.id}</a></td><td>${AD.fmtDate(o.ts)}</td><td>${sBadge(o.status)}</td><td class="num">${M(o.total)}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">No orders yet</td></tr>'}</tbody></table>${c.dbId ? `<div class="field mt"><label for="cnote">Internal note</label><textarea id="cnote" maxlength="2000" placeholder="e.g. Bursar prefers delivery on Fridays"${CAN.sales ? '' : ' readonly'}>${esc(c.note)}</textarea></div>` : '<p class="muted sm mt">This buyer checked out without an account, so there is no profile to add a note to.</p>'}`,
+          `${c.email ? `<a class="btn btn-line" href="mailto:${esc(c.email)}">${ic('mail')}Email</a>` : ''}${phone ? `<a class="btn btn-line" href="https://wa.me/${phone}" target="_blank" rel="noopener">${ic('whatsapp')}WhatsApp</a>` : ''}${c.dbId ? '<button class="btn btn-primary" type="button" id="cnoteSave">Save note</button>' : ''}`);
+        const sb = $('#cnoteSave'); if (sb) { sb.disabled = !CAN.sales; sb.title = CAN.sales ? '' : NO_SALES; sb.addEventListener('click', () => send(SB + '/customers/' + c.dbId + '/note', 'POST', { admin_note: $('#cnote').value }).then(d => toast(esc(d.message))).catch(oops)); }
+        return true;
+      }
+    });
+
+    /* Add a customer */
+    lock('[data-open="addCust"]', CAN.sales, NO_SALES);
+    $('#custSave').addEventListener('click', () => {
+      let ok = true; const bad = (sel, b) => { const f = $(sel).closest('.field'); f.classList.toggle('bad', b); if (b && ok) { ok = false; $(sel).focus(); } };
+      bad('#cn', !$('#cn').value.trim()); bad('#ce', !$('#ce').value.trim() || !$('#ce').checkValidity());
+      if (!ok) { toast('Please fix the highlighted fields.', 'err'); return; }
+      const btn = $('#custSave'); btn.disabled = true;
+      send(SB + '/customers', 'POST', { name: $('#cn').value.trim(), type: $('#ct').value, phone: $('#cp').value.trim() || null, email: $('#ce').value.trim(), contact: $('#cc').value.trim() || null, district: $('#cd').value.trim() || null })
+        .then(d => { ADM.close($('#addCust')); ['#cn', '#cp', '#ce', '#cc', '#cd'].forEach(s => { $(s).value = ''; }); paint(); S.render(); toast(esc(d.message)); })
+        .catch(oops).finally(() => { btn.disabled = false; });
     });
   };
 
   /* ================= PAYMENTS ================= */
   P.payments = function () {
-    const all = AD.orders, paid = all.filter(AD.counted), m30 = AD.within(30), pend = all.filter(o => o.pay === 'pending' && o.status !== 'cancelled'), fail = all.filter(o => o.pay === 'failed'), ref = all.filter(o => o.pay === 'refunded');
-    $('#payStats').innerHTML = [['Collected (30 days)', M(AD.sum(m30, o => o.total)), 'wallet', 'g'], ['Awaiting confirmation', M(AD.sum(pend, o => o.total)) + ' · ' + pend.length, 'clock', 'y'], ['Failed payments', fail.length, 'x', 'r'], ['Refunded', M(AD.sum(ref, o => o.total)), 'refresh', 'p']].map(s => `<div class="card kpi mini"><div class="flex-b"><div><div class="kpi-l">${s[0]}</div><div class="kpi-v" style="font-size:1.15rem">${s[1]}</div></div><span class="kpi-ic ${s[3]}">${ic(s[2])}</span></div></div>`).join('');
-    const pm = AD.byMethod(paid); C.donut('#chPay', { items: [{ name: 'MTN Mobile Money', value: pm.mtn, color: 'var(--c2)' }, { name: 'Airtel Money', value: pm.airtel, color: 'var(--c3)' }, { name: 'Visa / Mastercard', value: pm.card, color: 'var(--c1)' }, { name: 'Cash on pickup', value: pm.cash, color: 'var(--c4)' }], centerLabel: 'All time', tipFmt: M, size: 180 });
-    const S = AD.series(90).buckets; C.line('#chPayTrend', { labels: S.map(b => b.label), series: [{ name: 'Collected', data: S.map(b => b.rev), color: 'var(--c4)' }], tipFmt: M, height: 230 });
-    ADM.table('#tbl', {
+    const draw = () => {
+      const all = AD.orders, paid = all.filter(AD.counted), m30 = AD.within(30), pend = all.filter(o => o.pay === 'pending' && o.status !== 'cancelled'), fail = all.filter(o => o.pay === 'failed'), ref = all.filter(o => o.pay === 'refunded');
+      $('#payStats').innerHTML = [['Collected (30 days)', M(AD.sum(m30, o => o.total)), 'wallet', 'g'], ['Awaiting confirmation', M(AD.sum(pend, o => o.total)) + ' · ' + pend.length, 'clock', 'y'], ['Failed payments', fail.length, 'x', 'r'], ['Refunded', M(AD.sum(ref, o => o.total)), 'refresh', 'p']].map(s => `<div class="card kpi mini"><div class="flex-b"><div><div class="kpi-l">${s[0]}</div><div class="kpi-v" style="font-size:1.15rem">${s[1]}</div></div><span class="kpi-ic ${s[3]}">${ic(s[2])}</span></div></div>`).join('');
+      const pm = AD.byMethod(paid); C.donut('#chPay', { items: [{ name: 'MTN Mobile Money', value: pm.mtn, color: 'var(--c2)' }, { name: 'Airtel Money', value: pm.airtel, color: 'var(--c3)' }, { name: 'Visa / Mastercard', value: pm.card, color: 'var(--c1)' }, { name: 'Cash on pickup', value: pm.cash, color: 'var(--c4)' }], centerLabel: 'All time', tipFmt: M, size: 180 });
+      const S = AD.series(90).buckets; C.line('#chPayTrend', { labels: S.map(b => b.label), series: [{ name: 'Collected', data: S.map(b => b.rev), color: 'var(--c4)' }], tipFmt: M, height: 230 });
+    };
+    draw();
+    const T = ADM.table('#tbl', {
       rows: () => AD.orders, id: o => o.id, size: 10, csvName: 'wakata-payments', placeholder: 'Search transaction, order, customer…', sort: 'date', dir: -1,
       tabs: { items: [{ k: 'all', label: 'All transactions' }, ...Object.keys(PS).map(k => ({ k, label: PS[k].label, fn: o => o.pay === k }))] },
       search: o => [o.id, o.txn, o.cust.name, o.cust.phone].join(' '),
       filters: [{ k: 'm', label: 'Method', all: 'All methods', options: Object.entries(AD.PAY_METHODS), fn: (o, v) => o.method === v }],
-      cols: [{ k: 'txn', label: 'Transaction', sort: o => o.txn, html: o => o.txn ? `<code style="font-size:.82rem">${o.txn}</code>` : '<span class="muted">Cash</span>', csv: o => o.txn }, { k: 'o', label: 'Order', sort: o => o.id, html: o => `<a class="link-row" href="order.html?id=${o.id}">${o.id}</a>` }, { k: 'c', label: 'Customer', html: o => `${esc(o.cust.name)}<div class="xs muted">${o.method === 'card' ? 'Card payment' : o.cust.phone}</div>`, csv: o => o.cust.name }, { k: 'm', label: 'Method', html: o => AD.PAY_METHODS[o.method], csv: o => AD.PAY_METHODS[o.method] }, { k: 'date', label: 'Date', sort: o => o.ts, html: o => `${AD.fmtDate(o.ts)}<div class="xs muted">${AD.fmtTime(o.ts)}</div>`, csv: o => AD.fmtDate(o.ts) }, { k: 'a', label: 'Amount', num: true, sort: o => o.total, html: o => `<b>${M(o.total)}</b>`, csv: o => o.total }, { k: 's', label: 'Status', sort: o => o.pay, html: o => pBadge(o.pay), csv: o => PS[o.pay].label }],
-      actions: o => `<div class="row-actions">${o.pay === 'pending' ? `<button class="btn btn-line btn-sm" type="button" data-act="verify">${ic('check')}Verify</button>` : ''}${o.pay === 'paid' ? `<button class="btn btn-ic" type="button" data-act="refund" title="Refund" aria-label="Refund">${ic('refresh')}</button>` : ''}<a class="btn btn-ic" href="order.html?id=${o.id}" aria-label="Open order">${ic('eye')}</a></div>`,
-      onAct: (a, o) => { if (a === 'refund') { ADM.confirm({ title: 'Refund ' + M(o.total) + '?', text: 'The refund will be sent back via ' + AD.PAY_METHODS[o.method] + '. Design preview, nothing is sent.', ok: 'Refund', icon: 'refresh', onOk: () => toast('Refund recorded (preview).') }); return true; } if (a === 'verify') { toast('Payment ' + o.txn + ' marked as received (preview).'); return true; } return false; }
+      cols: [{ k: 'txn', label: 'Transaction', sort: o => o.txn, html: o => o.txn ? `<code style="font-size:.82rem">${esc(o.txn)}</code>` : `<span class="muted">${o.method === 'cash' ? 'Cash' : 'No reference yet'}</span>`, csv: o => o.txn }, { k: 'o', label: 'Order', sort: o => o.id, html: o => `<a class="link-row" href="${orderHref(o)}">${o.id}</a>` }, { k: 'c', label: 'Customer', html: o => `${esc(o.cust.name)}<div class="xs muted">${o.method === 'card' ? 'Card payment' : esc(o.cust.phone)}</div>`, csv: o => o.cust.name }, { k: 'm', label: 'Method', html: o => esc(AD.PAY_METHODS[o.method] || o.method), csv: o => AD.PAY_METHODS[o.method] || o.method }, { k: 'date', label: 'Date', sort: o => o.ts, html: o => `${AD.fmtDate(o.ts)}<div class="xs muted">${AD.fmtTime(o.ts)}</div>`, csv: o => AD.fmtDate(o.ts) }, { k: 'a', label: 'Amount', num: true, sort: o => o.total, html: o => `<b>${M(o.total)}</b>`, csv: o => o.total }, { k: 's', label: 'Status', sort: o => o.pay, html: o => pBadge(o.pay), csv: o => PS[o.pay].label }],
+      actions: o => `<div class="row-actions">${o.pay === 'pending' && !closed(o) ? `<button class="btn btn-line btn-sm" type="button" data-act="verify">${ic('check')}Verify</button>` : ''}${o.pay === 'paid' && !closed(o) ? `<button class="btn btn-ic" type="button" data-act="refund" title="Refund" aria-label="Refund">${ic('refresh')}</button>` : ''}<a class="btn btn-ic" href="${orderHref(o)}" aria-label="Open order">${ic('eye')}</a></div>`,
+      onAct: (a, o) => {
+        if (a === 'refund') { ADM.confirm({ title: 'Refund ' + M(o.total) + '?', text: 'The payment is recorded as refunded via ' + (AD.PAY_METHODS[o.method] || o.method) + ' and the order is closed. Send the money back yourself first.', ok: 'Refund', icon: 'refresh', onOk: () => send(orderUrl(o, '/payment/refund'), 'POST', {}).then(d => { draw(); T.render(); toast(esc(d.message)); }).catch(oops) }); return true; }
+        if (a === 'verify') { send(orderUrl(o, '/payment/verify'), 'POST', {}).then(d => { draw(); T.render(); toast(esc(d.message)); }).catch(oops); return true; }
+        return false;
+      }
+    });
+
+    /* Payment methods on the website: the four switches */
+    const sw = $$('input[data-method]'), flags = () => Object.fromEntries(sw.map(i => [i.dataset.method, i.checked]));
+    lock('input[data-method]', CAN.payments, NO_PAY);
+    sw.forEach(i => i.addEventListener('change', () => {
+      ADM.send(SB + '/payments/methods', 'PUT', flags()).then(d => toast('Payment methods saved.')).catch(e => { i.checked = !i.checked; oops(e); });
+    }));
+    $('#reconBtn').addEventListener('click', () => {
+      if (!CAN.payments) { toast(NO_PAY, 'err'); return; }
+      ADM.send(SB + '/payments/reconcile', 'POST').then(d => toast(esc(d.message))).catch(oops);
     });
   };
 
   /* ================= DELIVERIES ================= */
   P.deliveries = function () {
-    const cols = [{ k: 'prep', t: 'To prepare', fn: o => ['pending', 'confirmed', 'processing'].includes(o.status), act: o => o.delivery === 'pickup' ? 'Mark ready' : 'Dispatch', next: o => o.delivery === 'pickup' ? 'ready' : 'shipped' }, { k: 'ready', t: 'Ready for pickup', fn: o => o.status === 'ready' && o.delivery === 'pickup', act: () => 'Collected', next: () => 'completed' }, { k: 'out', t: 'Out for delivery', fn: o => o.status === 'shipped' || (o.status === 'ready' && o.delivery !== 'pickup'), act: () => 'Delivered', next: () => 'completed' }, { k: 'done', t: 'Delivered (14 days)', fn: o => o.status === 'completed' && o.ts > NOW - 14 * DAY } ];
+    const cols = [{ k: 'prep', t: 'To prepare', fn: o => ['pending', 'confirmed', 'processing'].includes(o.status), act: o => o.delivery === 'pickup' ? 'Mark ready' : 'Dispatch', next: o => o.delivery === 'pickup' ? 'ready' : 'shipped' }, { k: 'ready', t: 'Ready for pickup', fn: o => o.status === 'ready' && o.delivery === 'pickup', act: () => 'Collected', next: () => 'completed' }, { k: 'out', t: 'Out for delivery', fn: o => o.status === 'shipped' || (o.status === 'ready' && o.delivery !== 'pickup'), act: () => 'Delivered', next: () => 'completed' }, { k: 'done', t: 'Delivered (14 days)', fn: o => o.status === 'completed' && o.ts > NOW - 14 * DAY }];
     const zone = { pickup: 'b-info', kampala: 'b-ok', upcountry: 'b-pur' };
     function render() {
       const phys = AD.orders.filter(o => o.delivery !== 'email');
-      $('#board').innerHTML = cols.map(c => { const os = phys.filter(c.fn).slice(0, c.k === 'done' ? 8 : 20); return `<div class="kcol"><h3>${c.t}<span class="n">${phys.filter(c.fn).length}</span></h3>${os.map(o => `<div class="kcard"><div class="flex-b"><b>${o.id}</b><span class="badge nodot ${zone[o.delivery]}">${o.delivery === 'pickup' ? 'Pickup' : o.delivery === 'kampala' ? 'Kampala' : 'Upcountry'}</span></div><small>${esc(o.cust.name)}</small><small>${o.items.reduce((a, i) => a + i.qty, 0)} units · ${M(o.total)}</small><small>${o.pay === 'paid' ? '<span style="color:var(--ok)">Paid</span>' : '<span style="color:var(--warn)">Payment pending</span>'} · ${AD.rel(o.ts)}</small>${c.act ? `<div class="flex-b" style="margin-top:.6rem"><a class="btn btn-ic" style="width:30px;height:30px" href="order.html?id=${o.id}" aria-label="Open order">${ic('eye')}</a><button class="btn btn-primary btn-sm" type="button" data-move="${o.id}" data-col="${c.k}">${c.act(o)}</button></div>` : ''}</div>`).join('') || '<p class="muted sm">Nothing here.</p>'}</div>`; }).join('');
+      $('#board').innerHTML = cols.map(c => { const os = phys.filter(c.fn).slice(0, c.k === 'done' ? 8 : 20); return `<div class="kcol"><h3>${c.t}<span class="n">${phys.filter(c.fn).length}</span></h3>${os.map(o => `<div class="kcard"><div class="flex-b"><b>${o.id}</b><span class="badge nodot ${zone[o.delivery] || 'b-mute'}">${o.delivery === 'pickup' ? 'Pickup' : o.delivery === 'kampala' ? 'Kampala' : o.delivery === 'upcountry' ? 'Upcountry' : esc(o.delivery)}</span></div><small>${esc(o.cust.name)}</small><small>${itemUnits(o)} units · ${M(o.total)}</small><small>${o.pay === 'paid' ? '<span style="color:var(--ok)">Paid</span>' : '<span style="color:var(--warn)">Payment pending</span>'} · ${AD.rel(o.ts)}</small>${o.courier ? `<small>Courier: ${esc(o.courier)}</small>` : ''}${c.act ? `<div class="flex-b" style="margin-top:.6rem"><a class="btn btn-ic" style="width:30px;height:30px" href="${orderHref(o)}" aria-label="Open order">${ic('eye')}</a><button class="btn btn-primary btn-sm" type="button" data-move="${esc(o.id)}" data-col="${c.k}"${CAN.sales ? '' : ' disabled title="' + NO_SALES + '"'}>${c.act(o)}</button></div>` : ''}</div>`).join('') || '<p class="muted sm">Nothing here.</p>'}</div>`; }).join('');
     }
     render();
-    $('#board').addEventListener('click', e => { const b = e.target.closest('[data-move]'); if (!b) return; const o = AD.orders.find(x => x.id === b.dataset.move), c = cols.find(x => x.k === b.dataset.col); o.status = c.next(o); render(); toast(o.id + ' moved to “' + OS[o.status].label + '”. Preview only, resets on reload.'); });
-    const pdf = AD.orders.filter(o => o.items.some(i => i.fmt === 'pdf'));
-    ADM.table('#pdfTbl', { rows: () => pdf, id: o => o.id, size: 8, csvName: 'wakata-pdf-deliveries', placeholder: 'Search order or email…', search: o => o.id + o.cust.email + o.cust.name, cols: [{ k: 'o', label: 'Order', html: o => `<a class="link-row" href="order.html?id=${o.id}">${o.id}</a>` }, { k: 'c', label: 'Send to', html: o => `${esc(o.cust.name)}<div class="xs muted">${esc(o.cust.email)}</div>`, csv: o => o.cust.email }, { k: 'f', label: 'PDF files', num: true, html: o => o.items.filter(i => i.fmt === 'pdf').length }, { k: 's', label: 'Email', html: o => o.pay === 'paid' ? `<span class="badge b-ok">Sent ${AD.fmtDate(o.ts)}</span>` : '<span class="badge b-warn">Waiting for payment</span>', csv: o => o.pay }, { k: 'd', label: 'Downloads', num: true, html: o => o.pay === 'paid' ? 1 + o.items.length % 3 : 0 }], actions: o => `<div class="row-actions"><button class="btn btn-line btn-sm" type="button" data-act="resend">${ic('send')}Resend</button></div>` });
+    $('#board').addEventListener('click', e => {
+      const b = e.target.closest('[data-move]'); if (!b) return;
+      const o = AD.orders.find(x => x.id === b.dataset.move), c = cols.find(x => x.k === b.dataset.col); b.disabled = true;
+      send(orderUrl(o, '/status'), 'POST', { status: c.next(o), notify: true }).then(d => { render(); toast(esc(o.id) + ' moved to “' + OS[o.status].label + '”.'); }).catch(err => { render(); oops(err); });
+    });
+
+    /* PDF emails */
+    const pdf = () => AD.orders.filter(o => o.items.some(i => i.fmt === 'pdf'));
+    const P2 = ADM.table('#pdfTbl', { rows: pdf, id: o => o.id, size: 8, csvName: 'wakata-pdf-deliveries', placeholder: 'Search order or email…', search: o => o.id + o.cust.email + o.cust.name, cols: [{ k: 'o', label: 'Order', html: o => `<a class="link-row" href="${orderHref(o)}">${o.id}</a>` }, { k: 'c', label: 'Send to', html: o => `${esc(o.cust.name)}<div class="xs muted">${esc(o.cust.email || 'No email')}</div>`, csv: o => o.cust.email }, { k: 'f', label: 'PDF files', num: true, html: o => o.items.filter(i => i.fmt === 'pdf').length }, { k: 's', label: 'Files', html: o => o.pay === 'paid' && !closed(o) ? `<span class="badge b-ok">In library</span>${o.emailedTs ? `<div class="xs muted">Emailed ${AD.fmtDate(o.emailedTs)}</div>` : ''}` : closed(o) ? `<span class="badge b-mute">${OS[o.status].label}</span>` : '<span class="badge b-warn">Waiting for payment</span>', csv: o => o.pay }, { k: 'd', label: 'Downloads', num: true, html: o => o.downloads }], actions: o => `<div class="row-actions"><button class="btn btn-line btn-sm" type="button" data-act="resend"${o.pay === 'paid' && !closed(o) && o.cust.email ? '' : ' disabled'}>${ic('send')}Resend</button></div>`,
+      onAct: (a, o) => { if (a !== 'resend') return false; send(orderUrl(o, '/files'), 'POST', {}).then(d => { P2.render(); toast(esc(d.message)); }).catch(oops); return true; } });
+
+    /* Options and fees */
+    lock('#dlvSave,#dlvRows input', CAN.payments, NO_PAY);
+    $('#dlvSave').addEventListener('click', () => {
+      const body = {}; $$('#dlvRows tr').forEach(tr => { const g = f => $('[data-f="' + f + '"]', tr); body[tr.dataset.key] = { label: g('label').value.trim(), eta: g('eta').value.trim(), fee: Number(g('fee').value || 0), enabled: g('enabled').checked }; });
+      ADM.send(SB + '/deliveries/options', 'PUT', body).then(d => { AD.sales.setDelivery(d.delivery); render(); toast('Delivery options saved.'); }).catch(oops);
+    });
   };
 
   /* ================= MESSAGES ================= */

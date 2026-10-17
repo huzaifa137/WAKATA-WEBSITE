@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Support\Cart;
 use App\Support\CustomerSession;
 use App\Support\Portal;
+use App\Support\ShopSettings;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -24,6 +25,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Delivery names and fees, and the payment methods switched on or off by staff (module 8)
+        ShopSettings::apply();
+
         // @icon('grid') / @icon('external', 'sb-ext') render the inline SVGs from config/icons.php
         Blade::directive('icon', fn (string $expression) => "<?php echo \\App\\Support\\Icon::svg({$expression}); ?>");
 
