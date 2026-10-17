@@ -219,6 +219,10 @@ class Cart
             if (! $m) {
                 continue;
             }
+            // A paper format the admin switched off cannot be bought
+            if ($r['type'] === 'paper' && ! ($r['fmt'] === 'pdf' ? $m->pdf_on : $m->print_on)) {
+                continue;
+            }
 
             $base = ['k' => $r['k'], 'type' => $r['type'], 'id' => $r['id'], 'fmt' => $r['fmt'], 'item_id' => $m->id];
 

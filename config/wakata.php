@@ -38,6 +38,10 @@ return [
     // On by default everywhere except production; in production a customer is told the file is still being prepared (and no download is used).
     'placeholder_pdfs' => ($placeholderPdfs === null || $placeholderPdfs === '') ? env('APP_ENV') !== 'production' : filter_var($placeholderPdfs, FILTER_VALIDATE_BOOLEAN),
 
+    // Admin console (module 7)
+    // Where uploaded book covers, paper sheets and exam set previews are stored (public, served as /assets/img/...).
+    'image_dir' => public_path('assets/img'),
+
     // Password for the seeded admin (and the local demo customer). Set WAKATA_SEED_PASSWORD in .env.
     'seed_password' => env('WAKATA_SEED_PASSWORD'),
 ];

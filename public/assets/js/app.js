@@ -103,14 +103,14 @@
     return `<div class="sheet gen" aria-hidden="true"><img src="${WK.u('assets/img/logo.png')}" alt=""><b>WAKATA MOCK EXAMINATIONS ${p.year}</b><span>${esc(lvFull(p.level))}</span><b class="big">${esc(p.subject)}</b><b>${p.level === 'ple' ? 'Primary Seven' : esc(p.paper)}</b><div class="rule"></div><i></i><i style="width:88%"></i><i style="width:94%"></i><i style="width:70%"></i><i></i><i style="width:82%"></i></div>`;
   }
   function paperCard(p) {
-    const n = 'fmt-' + p.id;
+    const n = 'fmt-' + p.id, first = p.noPrint ? 'pdf' : 'print';   /* a format the admin switched off is not offered */
     return `<article class="pp"><a class="pp-thumb" href="#" tabindex="-1" aria-hidden="true" data-noop><span class="pp-year">${p.year}</span>${sheetHTML(p)}</a>
       <div class="pp-body"><h3 class="pp-title">${esc(p.title)}</h3>
       <span class="pp-meta">${D.LEVELS[p.level].label}, ${esc(p.time)}</span>
       <div class="fmt" role="radiogroup" aria-label="Format for ${esc(p.title)} ${p.year}">
-        <label><input type="radio" name="${n}" value="print" checked data-fmt><span>Printed</span></label>
-        <label><input type="radio" name="${n}" value="pdf" data-fmt><span>PDF</span></label></div>
-      <div class="bk-foot"><span class="price" data-price data-print="${p.print}" data-pdf="${p.pdf}">${D.money(p.print)}</span>
+        ${p.noPrint ? '' : `<label><input type="radio" name="${n}" value="print" ${first === 'print' ? 'checked' : ''} data-fmt><span>Printed</span></label>`}
+        ${p.noPdf ? '' : `<label><input type="radio" name="${n}" value="pdf" ${first === 'pdf' ? 'checked' : ''} data-fmt><span>PDF</span></label>`}</div>
+      <div class="bk-foot"><span class="price" data-price data-print="${p.print}" data-pdf="${p.pdf}">${D.money(p[first])}</span>
       <span class="acts">${sv('paper', p.id)}<button class="add" data-add data-type="paper" data-id="${p.id}" aria-label="Add ${esc(p.title)} ${p.year} to cart">${ic('cart')}Add</button></span></div></div></article>`;
   }
   function setCard(s) {

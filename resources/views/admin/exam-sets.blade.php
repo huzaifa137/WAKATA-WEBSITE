@@ -2,6 +2,7 @@
 
 @section('title', 'Exam sets')
 @section('page', 'exam-sets')
+@section('adm', '1')
 
 @section('content')
 <div class="pagehead"><div><h1>Exam sets</h1><p>Complete mock series sold as one bundle, shown on the Exam sets page.</p></div><div class="ph-actions"><a class="btn btn-primary btn-sm" href="{{ route('admin.set-form') }}">@icon('plus')New exam set</a></div></div>

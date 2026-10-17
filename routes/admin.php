@@ -1,6 +1,13 @@
 <?php
 
 use App\Http\Controllers\Admin\AuthController;
+use App\Http\Controllers\Admin\BookController;
+use App\Http\Controllers\Admin\ExamSetController;
+use App\Http\Controllers\Admin\InventoryController;
+use App\Http\Controllers\Admin\MediaController;
+use App\Http\Controllers\Admin\PackageController;
+use App\Http\Controllers\Admin\PaperController;
+use App\Http\Controllers\Admin\TaxonomyController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -12,6 +19,9 @@ use Illuminate\Support\Facades\Route;
 | admin.auth (the custom LoggedAdmin session middleware).
 | The pages keep the prototype's file names (book-form, paper-form ...) so the
 | prototype JS links keep working; later modules swap them for resource routes.
+| Module 7: the catalogue pages (books, past papers, exam sets, packages, subjects and levels, media, inventory)
+| are real. Looking is open to every signed-in admin; saving, deleting and uploading also needs admin.catalogue
+| (super admin, manager or editor).
 */
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/', fn () => redirect()->route('admin.dashboard'))->name('home');
@@ -41,17 +51,60 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // Pages that use the sidebar + topbar shell
         Route::view('/dashboard', 'admin.dashboard')->name('dashboard');
-        Route::view('/books', 'admin.books')->name('books');
-        Route::view('/book-form', 'admin.book-form')->name('book-form');
-        Route::view('/past-papers', 'admin.past-papers')->name('past-papers');
-        Route::view('/paper-form', 'admin.paper-form')->name('paper-form');
-        Route::view('/exam-sets', 'admin.exam-sets')->name('exam-sets');
-        Route::view('/set-form', 'admin.set-form')->name('set-form');
-        Route::view('/packages', 'admin.packages')->name('packages');
-        Route::view('/package-form', 'admin.package-form')->name('package-form');
-        Route::view('/taxonomy', 'admin.taxonomy')->name('taxonomy');
-        Route::view('/media', 'admin.media')->name('media');
-        Route::view('/inventory', 'admin.inventory')->name('inventory');
+
+        // ---- Catalogue (module 7): looking ----
+        Route::get('/books', [BookController::class, 'index'])->name('books');
+        Route::get('/book-form', [BookController::class, 'form'])->name('book-form');
+        Route::get('/past-papers', [PaperController::class, 'index'])->name('past-papers');
+        Route::get('/paper-form', [PaperController::class, 'form'])->name('paper-form');
+        Route::get('/papers/{paper:slug}/file', [PaperController::class, 'file'])->name('papers.file');
+        Route::get('/exam-sets', [ExamSetController::class, 'index'])->name('exam-sets');
+        Route::get('/set-form', [ExamSetController::class, 'form'])->name('set-form');
+        Route::get('/packages', [PackageController::class, 'index'])->name('packages');
+        Route::get('/package-form', [PackageController::class, 'form'])->name('package-form');
+        Route::get('/taxonomy', [TaxonomyController::class, 'index'])->name('taxonomy');
+        Route::get('/media', [MediaController::class, 'index'])->name('media');
+        Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory');
+
+        // ---- Catalogue (module 7): changing ----
+        Route::middleware('admin.catalogue')->group(function () {
+            Route::post('/books', [BookController::class, 'store'])->name('books.store');
+            Route::post('/books/bulk', [BookController::class, 'bulk'])->name('books.bulk');
+            Route::put('/books/{book:slug}', [BookController::class, 'update'])->name('books.update');
+            Route::delete('/books/{book:slug}', [BookController::class, 'destroy'])->name('books.destroy');
+            Route::post('/books/{book:slug}/duplicate', [BookController::class, 'duplicate'])->name('books.duplicate');
+
+            Route::post('/papers', [PaperController::class, 'store'])->name('papers.store');
+            Route::post('/papers/bulk', [PaperController::class, 'bulk'])->name('papers.bulk');
+            Route::post('/papers/defaults', [PaperController::class, 'defaults'])->name('papers.defaults');
+            Route::post('/papers/bulk-upload', [PaperController::class, 'bulkUpload'])->name('papers.bulk-upload');
+            Route::put('/papers/{paper:slug}', [PaperController::class, 'update'])->name('papers.update');
+            Route::patch('/papers/{paper:slug}/quick', [PaperController::class, 'quick'])->name('papers.quick');
+            Route::post('/papers/{paper:slug}/file', [PaperController::class, 'uploadFile'])->name('papers.upload');
+            Route::delete('/papers/{paper:slug}', [PaperController::class, 'destroy'])->name('papers.destroy');
+
+            Route::post('/exam-sets', [ExamSetController::class, 'store'])->name('exam-sets.store');
+            Route::put('/exam-sets/{set:slug}', [ExamSetController::class, 'update'])->name('exam-sets.update');
+            Route::delete('/exam-sets/{set:slug}', [ExamSetController::class, 'destroy'])->name('exam-sets.destroy');
+
+            Route::post('/packages', [PackageController::class, 'store'])->name('packages.store');
+            Route::put('/packages/{package:slug}', [PackageController::class, 'update'])->name('packages.update');
+            Route::delete('/packages/{package:slug}', [PackageController::class, 'destroy'])->name('packages.destroy');
+
+            Route::put('/taxonomy/levels', [TaxonomyController::class, 'levels'])->name('taxonomy.levels');
+            Route::put('/taxonomy/lists', [TaxonomyController::class, 'lists'])->name('taxonomy.lists');
+            Route::post('/taxonomy/subjects', [TaxonomyController::class, 'storeSubject'])->name('taxonomy.subjects.store');
+            Route::put('/taxonomy/subjects/{subject}', [TaxonomyController::class, 'updateSubject'])->whereNumber('subject')->name('taxonomy.subjects.update');
+            Route::delete('/taxonomy/subjects/{subject}', [TaxonomyController::class, 'destroySubject'])->whereNumber('subject')->name('taxonomy.subjects.destroy');
+
+            Route::post('/media', [MediaController::class, 'store'])->name('media.store');
+            Route::post('/media/replace', [MediaController::class, 'replace'])->name('media.replace');
+            Route::post('/media/delete', [MediaController::class, 'destroy'])->name('media.destroy');
+
+            Route::post('/inventory/adjust', [InventoryController::class, 'adjust'])->name('inventory.adjust');
+            Route::post('/inventory/alert', [InventoryController::class, 'alert'])->name('inventory.alert');
+        });
+
         Route::view('/orders', 'admin.orders')->name('orders');
         Route::view('/order', 'admin.order')->name('order');
         Route::view('/payments', 'admin.payments')->name('payments');

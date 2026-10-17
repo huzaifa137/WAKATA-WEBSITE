@@ -35,6 +35,34 @@
     ok.onclick = () => { close(m); o.onOk && o.onOk(); }; open(m);
   }
 
+  /* ---------- talking to Laravel ---------- */
+  const csrf = () => { const m = document.querySelector('meta[name="csrf-token"]'); return m ? m.content : ''; };
+  /* Submits a hidden form (the page reloads and shows Laravel's message). fields: { name: value | [values] } */
+  function post(url, fields, method) {
+    const f = document.createElement('form'); f.method = 'POST'; f.action = url; f.hidden = true;
+    const add = (n, v) => { const i = document.createElement('input'); i.type = 'hidden'; i.name = n; i.value = v; f.appendChild(i); };
+    add('_token', csrf()); if (method && method !== 'POST') add('_method', method);
+    Object.entries(fields || {}).forEach(([k, v]) => Array.isArray(v) ? v.forEach(x => add(k.endsWith('[]') ? k : k + '[]', x)) : add(k, v));
+    document.body.appendChild(f); f.submit();
+  }
+  /* Fetches JSON (no reload). Resolves with the data, rejects with a message you can show. */
+  function send(url, method, body) {
+    return fetch(url, { method: method || 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf(), 'X-Requested-With': 'XMLHttpRequest' }, body: body ? JSON.stringify(body) : undefined })
+      .then(r => r.json().catch(() => ({})).then(d => { if (!r.ok) { const e = d.errors ? Object.values(d.errors)[0][0] : (d.message || 'Something went wrong. Please try again.'); throw new Error(e); } return d; }));
+  }
+  /* Opens the file chooser, then posts the chosen file(s) to url as multipart (the page reloads). */
+  function uploadTo(url, field, accept, extra) {
+    const i = document.createElement('input'); i.type = 'file'; i.accept = accept || '*/*'; i.hidden = true; document.body.appendChild(i);
+    i.addEventListener('change', () => {
+      if (!i.files[0]) { i.remove(); return; }
+      const f = document.createElement('form'); f.method = 'POST'; f.action = url; f.enctype = 'multipart/form-data'; f.hidden = true;
+      const t = document.createElement('input'); t.type = 'hidden'; t.name = '_token'; t.value = csrf(); f.appendChild(t);
+      Object.entries(extra || {}).forEach(([k, v]) => { const h = document.createElement('input'); h.type = 'hidden'; h.name = k; h.value = v; f.appendChild(h); });
+      i.name = field; f.appendChild(i); document.body.appendChild(f); f.submit();
+    });
+    i.click();
+  }
+
   /* ---------- csv ---------- */
   function csv(name, head, rows) {
     const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
@@ -109,15 +137,20 @@
   /* ---------- forms ---------- */
   const repRow = (v, ph, name) => `<div class="rrow" draggable="false"><span class="grip" title="Drag to reorder">${ic('drag')}</span><input name="${name || 'items[]'}" value="${esc(v || '')}" placeholder="${esc(ph || '')}"><button class="btn btn-ic" type="button" data-rm-row aria-label="Remove">${ic('x')}</button></div>`;
   function fillForm(f) {
-    const key = f.dataset.load, id = qs('id'); const list = WK[key]; if (!list) return null; const rec = id ? list.find(x => x.id === id) : null; if (!rec) return null; if (rec.preview) rec.preview.forEach((p, i) => rec['preview' + (i + 1)] = WK.PAPER_IMG + p);
+    const key = f.dataset.load, id = qs('id'); const list = WK[key]; if (!list) return null; const saved = id ? list.find(x => x.id === id) : null;
+    const old = WK.old && Object.keys(WK.old).length ? WK.old : null; if (!saved && !old) return null;
+    const rec = Object.assign({}, saved || {}); const isEdit = !!saved;
+    if (rec.preview) rec.preview.forEach((p, i) => rec['preview' + (i + 1)] = WK.PAPER_IMG + p);
+    if (old) { /* a save was refused: put back what the person typed (files cannot be put back) */
+      $$('[name]', f).forEach(i => { const n = i.name; if (n === '_token' || n === '_method' || i.type === 'file' || i.type === 'hidden') return; if (n.endsWith('[]')) { const k = n.slice(0, -2); if (Array.isArray(old[k])) rec[k] = old[k]; return; } if (i.type === 'checkbox') rec[n] = n in old; else if (n in old) rec[n] = old[n]; });
+    }
     $$('[name]', f).forEach(i => { const n = i.name; if (n.endsWith('[]') || rec[n] === undefined) return; if (i.type === 'checkbox') i.checked = !!rec[n]; else if (i.type !== 'file') i.value = rec[n]; });
     $$('[data-fill-list]', f).forEach(c => { const arr = rec[c.dataset.fillList] || []; $('.rlist', c).innerHTML = arr.map(v => repRow(v, c.dataset.ph, c.dataset.fillList + '[]')).join(''); });
     $$('[data-fill-tags]', f).forEach(c => { (rec[c.dataset.fillTags] || []).forEach(v => addTag(c, v)); });
     $$('[data-bind-text]').forEach(n => { n.textContent = rec[n.dataset.bindText] != null ? rec[n.dataset.bindText] : n.textContent; });
     $$('[data-live-img]', f.closest('main') || document).forEach(n => { const v = rec[n.dataset.liveImg]; if (v) { n.src = AD.img(v); n.hidden = false; const p = n.closest('[data-img-wrap]'); if (p) p.classList.add('has'); } });
     $$('.drop[data-preview]', f).forEach(d => { const nm = $('input[type=file]', d).name, v = rec[nm]; if (v && !$('.pv', d)) { const im = document.createElement('img'); im.className = 'pv'; im.src = AD.img(v); im.alt = ''; d.prepend(im); } });
-    document.title = (rec.title || rec.name || document.title) + ' | WAKATA Admin';
-    f.dataset.mode = 'edit'; $$('[data-new-only]').forEach(n => n.hidden = true); $$('[data-edit-only]').forEach(n => n.hidden = false);
+    if (isEdit) { document.title = (rec.title || rec.name || document.title) + ' | WAKATA Admin'; f.dataset.mode = 'edit'; $$('[data-new-only]').forEach(n => n.hidden = true); $$('[data-edit-only]').forEach(n => n.hidden = false); }
     return rec;
   }
   function live(f) {
@@ -134,7 +167,10 @@
         $$('[required]', f).forEach(i => { if (i.disabled || i.closest('[hidden]')) return; const bad = i.type === 'checkbox' ? !i.checked : (!i.value.trim() || !i.checkValidity()); const fl = i.closest('.field'); if (fl) fl.classList.toggle('bad', bad); if (bad && ok) { ok = false; i.focus(); } });
         if (f.dataset.match) { const [a, b] = f.dataset.match.split(','); if (f.elements[a].value !== f.elements[b].value) { f.elements[b].closest('.field').classList.add('bad'); $('.err', f.elements[b].closest('.field')).textContent = 'The passwords do not match.'; ok = false; } }
         if (!ok) { toast('Please fix the highlighted fields.', 'err'); return; }
-        if (f.hasAttribute('data-native')) { const sb = f.querySelector('[type=submit]'); if (sb) sb.disabled = true; f.submit(); return; } /* real server-side form (Laravel) */
+        if (f.hasAttribute('data-native')) { /* real server-side form (Laravel) */
+          const who = e.submitter; if (who && who.name) { const h = document.createElement('input'); h.type = 'hidden'; h.name = who.name; h.value = who.value; f.appendChild(h); }
+          $$('[type=submit]', f).forEach(b => { b.disabled = true; }); f.submit(); return;
+        }
         if (f.dataset.onsubmit && window.ADM_HOOKS && ADM_HOOKS[f.dataset.onsubmit]) { ADM_HOOKS[f.dataset.onsubmit](f); return; }
         toast(f.dataset.ok || 'Saved. This is a design preview, so nothing is stored yet.'); if (f.dataset.next) setTimeout(() => location.href = f.dataset.next, 900);
       });
@@ -197,7 +233,7 @@
       else if (e.target.classList && e.target.classList.contains('mback')) close(e.target);
       else if (e.target.closest('[data-close-drawer]')) closeDrawer();
       else if ((n = e.target.closest('[data-toast]'))) { if (n.tagName === 'A') e.preventDefault(); toast(n.dataset.toast); }
-      else if ((n = e.target.closest('[data-confirm]'))) { e.preventDefault(); confirmBox({ title: n.dataset.confirm, text: n.dataset.text || 'This is a design preview, so nothing is changed yet.', ok: n.dataset.ok || 'Delete', danger: n.dataset.danger !== 'false', icon: n.dataset.icon, onOk: () => { toast(n.dataset.done || 'Done (preview only).'); if (n.dataset.then) setTimeout(() => location.href = n.dataset.then, 800); } }); }
+      else if ((n = e.target.closest('[data-confirm]'))) { e.preventDefault(); confirmBox({ title: n.dataset.confirm, text: n.dataset.text || 'This is a design preview, so nothing is changed yet.', ok: n.dataset.ok || 'Delete', danger: n.dataset.danger !== 'false', icon: n.dataset.icon, onOk: () => { if (n.dataset.form) { const fm = document.getElementById(n.dataset.form); if (fm) { fm.submit(); return; } } toast(n.dataset.done || 'Done (preview only).'); if (n.dataset.then) setTimeout(() => location.href = n.dataset.then, 800); } }); }
       else if (e.target.closest('[data-logout]')) { e.preventDefault(); const lf = $('#logoutForm'); if (lf) lf.submit(); }
       else if (e.target.closest('[data-lock]')) { e.preventDefault(); const lk = $('#lockForm'); if (lk) lk.submit(); }
       else if (e.target.closest('[data-print]')) { window.print(); }
@@ -208,5 +244,5 @@
   }
   shell(); initTabs(); initForms();
 
-  window.ADM = { $, $$, ic, esc, toast, open, close, drawer, closeDrawer, confirm: confirmBox, csv, table, qs, me, repRow, addTag, fillForm, AD, WK, ADC };
+  window.ADM = { $, $$, ic, esc, toast, open, close, drawer, closeDrawer, confirm: confirmBox, csv, table, qs, me, repRow, addTag, fillForm, post, send, uploadTo, AD, WK, ADC };
 })();

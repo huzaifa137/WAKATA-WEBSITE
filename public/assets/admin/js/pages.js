@@ -12,9 +12,10 @@
   const fmtTag = f => f === 'pdf' ? '<span class="fmt-tag pdf">PDF</span>' : '<span class="fmt-tag print">Printed</span>';
   const av = (name, i) => `<span class="avatar sm av-${(i != null ? i : name.length) % 6 + 1}">${AD.initials(name)}</span>`;
   const colors = ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--c5)', 'var(--c6)', 'var(--c7)'];
-  const LV = { ple: 'PLE', uce: 'UCE', uace: 'UACE', primary: 'PLE', o: 'UCE', a: 'UACE' };
+  const LV = Object.assign({ ple: 'PLE', uce: 'UCE', uace: 'UACE', primary: 'PLE', o: 'UCE', a: 'UACE' }, WK.adm ? Object.fromEntries(WK.adm.levels.flatMap(l => [[l.code, l.short], [l.book, l.short]])) : {});
+  const R = (WK.adm && WK.adm.routes) || {}, enc = encodeURIComponent;
   const lvBadge = l => `<span class="badge nodot b-info">${LV[l] || l}</span>`;
-  const sold = (type, id) => AD.sum(AD.orders.filter(AD.counted), o => AD.sum(o.items.filter(i => i.type === type && i.id === id), i => i.qty));
+  const sold = (type, id) => WK.adm ? ((WK.adm.sold[type] || {})[id] || 0) : AD.sum(AD.orders.filter(AD.counted), o => AD.sum(o.items.filter(i => i.type === type && i.id === id), i => i.qty));
   const units = (os, pred) => AD.sum(os, o => AD.sum(o.items.filter(pred), i => i.qty));
   const delta = (cur, prev) => { if (!prev) return '<span class="delta flat">new</span>'; const d = (cur - prev) / prev * 100, up = d >= 0; return `<span class="delta ${Math.abs(d) < .5 ? 'flat' : up ? 'up' : 'down'}">${up ? '▲' : '▼'} ${Math.abs(d).toFixed(1)}%</span>`; };
   const kpi = (icn, tone, label, val, dl, sp, id) => `<div class="card kpi"><div class="kpi-top"><span class="kpi-ic ${tone}">${ic(icn)}</span>${dl}</div><div class="kpi-l">${label}</div><div class="kpi-v">${val}</div><div class="kpi-f"><span class="xs muted">${sp ? 'vs prior period' : ''}</span><span class="spark" id="${id}"></span></div></div>`;
@@ -110,56 +111,90 @@
 
   /* ================= BOOKS ================= */
   P.books = function () {
+    const base = R.base + '/books', formUrl = id => R.bookForm + '?id=' + enc(id);
     const types = [...new Set(WK.books.map(b => b.type))], subs = [...new Set(WK.books.map(b => b.subject))].sort(), badges = [...new Set(WK.books.filter(b => b.badge).map(b => b.badge))];
-    const lvlName = { primary: 'Primary', o: 'O-Level', a: 'A-Level' };
+    const lvlName = Object.fromEntries(WK.adm.levels.map(l => [l.book, l.bookLabel]));
+    const meta = b => [b.sku, b.pages ? b.pages + ' pages' : '', b.edition].filter(Boolean).join(' · ');
     const kp = [['Titles', WK.books.length, 'book', ''], ['Published', WK.books.filter(b => b.status === 'published').length, 'check', 'g'], ['Drafts', WK.books.filter(b => b.status !== 'published').length, 'edit', 'y'], ['Low or out of stock', WK.books.filter(b => b.stock <= b.low).length, 'box', 'r']];
     $('#bookStats').innerHTML = kp.map(s => `<div class="card kpi mini"><div class="flex-b"><div><div class="kpi-l">${s[0]}</div><div class="kpi-v">${s[1]}</div></div><span class="kpi-ic ${s[3]}">${ic(s[2])}</span></div></div>`).join('');
+    const bulk = (action, extra) => ids => ADM.post(base + '/bulk', Object.assign({ action, 'ids[]': ids }, extra || {}));
     const S = ADM.table('#tbl', {
       rows: () => WK.books, id: b => b.id, select: true, size: 10, csvName: 'wakata-books', placeholder: 'Search title, subject, SKU…', q0: ADM.qs('q') || '',
       tabs: { items: [{ k: 'all', label: 'All books' }, { k: 'pub', label: 'Published', fn: b => b.status === 'published' }, { k: 'draft', label: 'Drafts', fn: b => b.status !== 'published' }, { k: 'low', label: 'Low stock', fn: b => b.stock <= b.low }, { k: 'feat', label: 'Featured on home', fn: b => b.featured }] },
       search: b => [b.title, b.subject, b.sku, b.type, b.edition].join(' '),
-      filters: [{ k: 'l', label: 'Level', all: 'All levels', options: [['primary', 'Primary'], ['o', 'O-Level'], ['a', 'A-Level']], fn: (b, v) => b.level === v }, { k: 's', label: 'Subject', all: 'All subjects', options: subs.map(s => [s, s]), fn: (b, v) => b.subject === v }, { k: 't', label: 'Type', all: 'All types', options: types.map(s => [s, s]), fn: (b, v) => b.type === v }, { k: 'b', label: 'Badge', all: 'Any badge', options: [...badges.map(s => [s, s]), ['none', 'No badge']], fn: (b, v) => v === 'none' ? !b.badge : b.badge === v }],
+      filters: [{ k: 'l', label: 'Level', all: 'All levels', options: WK.adm.levels.map(l => [l.book, l.bookLabel]), fn: (b, v) => b.level === v }, { k: 's', label: 'Subject', all: 'All subjects', options: subs.map(s => [s, s]), fn: (b, v) => b.subject === v }, { k: 't', label: 'Type', all: 'All types', options: types.map(s => [s, s]), fn: (b, v) => b.type === v }, { k: 'b', label: 'Badge', all: 'Any badge', options: [...badges.map(s => [s, s]), ['none', 'No badge']], fn: (b, v) => v === 'none' ? !b.badge : b.badge === v }],
       cols: [
-        { k: 'title', label: 'Book', sort: b => b.title, html: b => `<div class="cell-prod">${AD.thumbOf('book', b)}<div><a class="link-row" href="book-form.html?id=${b.id}">${esc(b.title)}</a><small>${b.sku} · ${b.pages} pages · ${esc(b.edition)}</small>${b.badge ? `<div style="margin-top:.2rem"><span class="badge nodot b-hl">${esc(b.badge)}</span></div>` : ''}</div></div>`, csv: b => b.title },
-        { k: 'subject', label: 'Subject', sort: b => b.subject, html: b => b.subject },
-        { k: 'level', label: 'Level', sort: b => b.level, html: b => lvBadge(b.level), csv: b => lvlName[b.level] },
+        { k: 'title', label: 'Book', sort: b => b.title, html: b => `<div class="cell-prod">${AD.thumbOf('book', b)}<div><a class="link-row" href="${formUrl(b.id)}">${esc(b.title)}</a><small>${esc(meta(b))}</small>${b.badge ? `<div style="margin-top:.2rem"><span class="badge nodot b-hl">${esc(b.badge)}</span></div>` : ''}</div></div>`, csv: b => b.title },
+        { k: 'subject', label: 'Subject', sort: b => b.subject, html: b => esc(b.subject) },
+        { k: 'level', label: 'Level', sort: b => b.level, html: b => lvBadge(b.level), csv: b => lvlName[b.level] || b.level },
         { k: 'type', label: 'Type', html: b => esc(b.type) },
         { k: 'price', label: 'Price', num: true, sort: b => b.price, html: b => `<b>${M(b.price)}</b>${b.old ? `<span class="old">${M(b.old)}</span>` : ''}`, csv: b => b.price },
         { k: 'stock', label: 'Stock', sort: b => b.stock, html: b => stockH(b.stock, b.low), csv: b => b.stock },
         { k: 'sold', label: 'Sold', num: true, sort: b => sold('book', b.id), html: b => sold('book', b.id).toLocaleString(), csv: b => sold('book', b.id) },
         { k: 'status', label: 'Status', sort: b => b.status, html: b => stBadgeSimple(b.status), csv: b => b.status }],
-      actions: b => `<div class="row-actions"><a class="btn btn-ic" href="book-form.html?id=${b.id}" title="Edit" aria-label="Edit">${ic('edit')}</a><a class="btn btn-ic" href="../book.html?id=${b.id}" target="_blank" rel="noopener" title="View on website" aria-label="View on website">${ic('external')}</a><button class="btn btn-ic" type="button" data-act="duplicate" title="Duplicate">${ic('copy')}</button><button class="btn btn-ic" type="button" data-act="delete" title="Delete">${ic('trash')}</button></div>`,
-      bulk: [{ label: 'Publish' }, { label: 'Move to draft' }, { label: 'Set a badge…' }, { label: 'Adjust prices…', act: () => ADM.open('priceModal') }, { label: 'Delete' }],
-      after: r => { $('#gridView').innerHTML = r.map(b => `<article class="pcard"><div class="pm">${b.badge ? `<span class="tag badge nodot b-hl">${esc(b.badge)}</span>` : ''}${AD.thumbOf('book', b)}</div><div class="pb"><span class="xs muted">${b.subject} · ${LV[b.level]}</span><h3><a href="book-form.html?id=${b.id}" class="link-row">${esc(b.title)}</a></h3>${stockH(b.stock, b.low)}<div class="pf"><b>${M(b.price)}${b.old ? `<span class="old">${M(b.old)}</span>` : ''}</b><a class="btn btn-ic" href="book-form.html?id=${b.id}" aria-label="Edit">${ic('edit')}</a></div></div></article>`).join('') || '<div class="empty">No books match.</div>'; }
+      actions: b => `<div class="row-actions"><a class="btn btn-ic" href="${formUrl(b.id)}" title="Edit" aria-label="Edit">${ic('edit')}</a><a class="btn btn-ic" href="${R.siteBook}?id=${enc(b.id)}" target="_blank" rel="noopener" title="View on website" aria-label="View on website">${ic('external')}</a><button class="btn btn-ic" type="button" data-act="duplicate" title="Duplicate">${ic('copy')}</button><button class="btn btn-ic" type="button" data-act="delete" title="Delete">${ic('trash')}</button></div>`,
+      onAct: (a, b) => {
+        if (a === 'duplicate') { ADM.post(base + '/' + enc(b.id) + '/duplicate'); return true; }
+        if (a === 'delete') { ADM.confirm({ title: 'Delete this book?', text: '“' + b.title + '” will be removed from the website. Orders already placed keep their details.', onOk: () => ADM.post(base + '/' + enc(b.id), {}, 'DELETE') }); return true; }
+        return false;
+      },
+      bulk: [{ label: 'Publish', act: bulk('publish') }, { label: 'Move to draft', act: bulk('draft') }, { label: 'Set a badge…', act: () => ADM.open('badgeModal') }, { label: 'Adjust prices…', act: () => ADM.open('priceModal') },
+        { label: 'Delete', act: ids => ADM.confirm({ title: 'Delete ' + ids.length + ' book' + (ids.length === 1 ? '' : 's') + '?', text: 'They will be removed from the website. Orders already placed keep their details.', onOk: () => bulk('delete')(ids) }) }],
+      after: r => { $('#gridView').innerHTML = r.map(b => `<article class="pcard"><div class="pm">${b.badge ? `<span class="tag badge nodot b-hl">${esc(b.badge)}</span>` : ''}${AD.thumbOf('book', b)}</div><div class="pb"><span class="xs muted">${esc(b.subject)} · ${LV[b.level] || ''}</span><h3><a href="${formUrl(b.id)}" class="link-row">${esc(b.title)}</a></h3>${stockH(b.stock, b.low)}<div class="pf"><b>${M(b.price)}${b.old ? `<span class="old">${M(b.old)}</span>` : ''}</b><a class="btn btn-ic" href="${formUrl(b.id)}" aria-label="Edit">${ic('edit')}</a></div></div></article>`).join('') || '<div class="empty">No books match.</div>'; }
     });
     $('#viewSeg').addEventListener('seg', e => { $('#tbl').hidden = e.detail === 'grid'; $('#gridWrap').hidden = e.detail !== 'grid'; });
+    $('#priceApply').addEventListener('click', () => { const ids = [...S.sel]; ADM.close($('#priceModal')); bulk('price', { mode: $('#pm').value, value: $('#pv').value, keepold: $('#priceModal [name=keepold]').checked ? '1' : '' })(ids); });
+    $('#badgeApply').addEventListener('click', () => { const ids = [...S.sel]; ADM.close($('#badgeModal')); bulk('badge', { badge: $('#bdg').value })(ids); });
   };
 
   /* ================= PAST PAPERS ================= */
+  const paperFile = p => p.subject.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-paper' + (String(p.paper).replace(/\D/g, '') || '1') + '-' + p.year + '.pdf';
   P['past-papers'] = function () {
+    const base = R.base + '/papers', formUrl = id => R.paperForm + '?id=' + enc(id), missing = p => p.pdfOn && !p.hasFile;
     const subs = [...new Set(WK.papers.map(p => p.subject))].sort(), years = [...new Set(WK.papers.map(p => p.year))].sort((a, b) => b - a);
     $$('[data-count-level]').forEach(n => n.textContent = WK.papers.filter(p => p.level === n.dataset.countLevel).length);
-    const kp = [['Papers listed', WK.papers.length, 'file', ''], ['Printed copies on sale', WK.papers.filter(p => p.printOn).length, 'print', 'y'], ['PDF downloads on sale', WK.papers.filter(p => p.pdfOn).length, 'download', 'r'], ['Missing PDF files', WK.papers.filter(p => !p.hasFile).length, 'alert', 'r']];
+    const kp = [['Papers listed', WK.papers.length, 'file', ''], ['Printed copies on sale', WK.papers.filter(p => p.printOn).length, 'print', 'y'], ['PDF downloads on sale', WK.papers.filter(p => p.pdfOn).length, 'download', 'r'], ['Missing PDF files', WK.papers.filter(missing).length, 'alert', 'r']];
     $('#paperStats').innerHTML = kp.map(s => `<div class="card kpi mini"><div class="flex-b"><div><div class="kpi-l">${s[0]}</div><div class="kpi-v">${s[1]}</div></div><span class="kpi-ic ${s[3]}">${ic(s[2])}</span></div></div>`).join('');
     const sw = (p, k) => `<label class="switch sm" style="margin-bottom:.35rem" title="On sale"><input type="checkbox" data-fmt-on="${k}" ${p[k + 'On'] ? 'checked' : ''} aria-label="${k === 'print' ? 'Printed' : 'PDF'} available"><span class="trk"></span></label><input class="price-in" type="number" step="500" min="0" value="${p[k]}" data-price="${k}" aria-label="${k} price" ${p[k + 'On'] ? '' : 'disabled'}>`;
     const hash = location.hash.slice(1);
-    ADM.table('#tbl', {
+    const bulk = (action, extra) => ids => ADM.post(base + '/bulk', Object.assign({ action, 'ids[]': ids }, extra || {}));
+    const S = ADM.table('#tbl', {
       rows: () => WK.papers, id: p => p.id, select: true, size: 10, csvName: 'wakata-past-papers', placeholder: 'Search subject, year…', sort: 'year', dir: -1,
-      tabs: { default: hash === 'missing' ? 'nofile' : 'all', items: [{ k: 'all', label: 'All papers' }, { k: 'print', label: 'Printed copies', fn: p => p.printOn }, { k: 'pdf', label: 'PDF downloads', fn: p => p.pdfOn }, { k: 'nofile', label: 'Missing PDF file', fn: p => !p.hasFile }, { k: 'draft', label: 'Drafts', fn: p => p.status !== 'published' }] },
+      tabs: { default: hash === 'missing' ? 'nofile' : 'all', items: [{ k: 'all', label: 'All papers' }, { k: 'print', label: 'Printed copies', fn: p => p.printOn }, { k: 'pdf', label: 'PDF downloads', fn: p => p.pdfOn }, { k: 'nofile', label: 'Missing PDF file', fn: missing }, { k: 'draft', label: 'Drafts', fn: p => p.status !== 'published' }] },
       search: p => [p.title, p.subject, p.year, p.paper, LV[p.level]].join(' '),
-      filters: [{ k: 'l', label: 'Level', all: 'All levels', options: [['ple', 'PLE'], ['uce', 'UCE'], ['uace', 'UACE']], fn: (p, v) => p.level === v }, { k: 's', label: 'Subject', all: 'All subjects', options: subs.map(s => [s, s]), fn: (p, v) => p.subject === v }, { k: 'y', label: 'Year', all: 'Any year', options: years.map(y => [y, y]), fn: (p, v) => String(p.year) === v }, { k: 'pp', label: 'Paper', all: 'Any paper', options: [['Paper 1', 'Paper 1'], ['Paper 2', 'Paper 2']], fn: (p, v) => p.paper === v }],
+      filters: [{ k: 'l', label: 'Level', all: 'All levels', options: WK.adm.levels.map(l => [l.code, l.short]), fn: (p, v) => p.level === v }, { k: 's', label: 'Subject', all: 'All subjects', options: subs.map(s => [s, s]), fn: (p, v) => p.subject === v }, { k: 'y', label: 'Year', all: 'Any year', options: years.map(y => [y, y]), fn: (p, v) => String(p.year) === v }, { k: 'pp', label: 'Paper', all: 'Any paper', options: [...new Set(WK.papers.map(p => p.paper))].sort().map(x => [x, x]), fn: (p, v) => p.paper === v }],
       cols: [
-        { k: 'paper', label: 'Paper', sort: p => p.subject + p.year, html: p => `<div class="cell-prod">${AD.thumbOf('paper', p)}<div><a class="link-row" href="paper-form.html?id=${p.id}">${esc(p.title)} ${p.year}</a><small>${LV[p.level]} · ${esc(p.time)}</small></div></div>`, csv: p => p.title + ' ' + p.year },
+        { k: 'paper', label: 'Paper', sort: p => p.subject + p.year, html: p => `<div class="cell-prod">${AD.thumbOf('paper', p)}<div><a class="link-row" href="${formUrl(p.id)}">${esc(p.title)} ${p.year}</a><small>${LV[p.level]} · ${esc(p.time)}</small></div></div>`, csv: p => p.title + ' ' + p.year },
         { k: 'year', label: 'Year', sort: p => p.year, html: p => p.year },
         { k: 'print', label: 'Printed copy', sort: p => p.print, html: p => sw(p, 'print'), csv: p => p.print },
         { k: 'pdf', label: 'PDF download', sort: p => p.pdf, html: p => sw(p, 'pdf'), csv: p => p.pdf },
-        { k: 'file', label: 'PDF file', sort: p => p.hasFile ? 1 : 0, html: p => p.hasFile ? `<div class="flex"><span class="badge b-ok">Uploaded</span></div><div class="xs muted">${p.subject.toLowerCase().replace(/[^a-z]+/g, '-')}-${p.year}.pdf · ${(0.6 + (p.year % 7) / 5).toFixed(1)} MB</div>` : `<span class="badge b-bad">Missing</span><div><button class="btn btn-line btn-sm" style="margin-top:.3rem" type="button" data-act="upload">${ic('upload')}Upload</button></div>`, csv: p => p.hasFile ? 'Uploaded' : 'Missing' },
+        { k: 'file', label: 'PDF file', sort: p => p.hasFile ? 1 : 0, html: p => p.hasFile ? `<div class="flex"><span class="badge b-ok">Uploaded</span></div><div class="xs muted">${paperFile(p)} · ${p.fileMb} MB</div>` : `<span class="badge b-bad">Missing</span><div><button class="btn btn-line btn-sm" style="margin-top:.3rem" type="button" data-act="upload">${ic('upload')}Upload</button></div>`, csv: p => p.hasFile ? 'Uploaded' : 'Missing' },
         { k: 'sales', label: 'Sold', num: true, sort: p => sold('paper', p.id), html: p => sold('paper', p.id).toLocaleString() },
         { k: 'status', label: 'Status', sort: p => p.status, html: p => stBadgeSimple(p.status) }],
-      actions: p => `<div class="row-actions"><a class="btn btn-ic" href="paper-form.html?id=${p.id}" aria-label="Edit" title="Edit">${ic('edit')}</a><button class="btn btn-ic" type="button" data-act="delete" aria-label="Delete" title="Delete">${ic('trash')}</button></div>`,
-      bulk: [{ label: 'Enable printed' }, { label: 'Enable PDF' }, { label: 'Set price…', act: () => ADM.open('bulkPrice') }, { label: 'Publish' }, { label: 'Move to draft' }],
-      after: (r, el) => { $$('[data-price]', el).forEach(i => i.onchange = () => toast('Price updated to ' + M(i.value || 0) + ' (preview only).')); $$('[data-fmt-on]', el).forEach(i => i.onchange = () => { const n = i.closest('td').querySelector('.price-in'); n.disabled = !i.checked; toast((i.dataset.fmtOn === 'print' ? 'Printed copy' : 'PDF download') + (i.checked ? ' switched on' : ' switched off') + ' (preview only).'); }); }
+      actions: p => `<div class="row-actions"><a class="btn btn-ic" href="${formUrl(p.id)}" aria-label="Edit" title="Edit">${ic('edit')}</a><button class="btn btn-ic" type="button" data-act="delete" aria-label="Delete" title="Delete">${ic('trash')}</button></div>`,
+      onAct: (a, p) => {
+        if (a === 'upload') { ADM.uploadTo(base + '/' + enc(p.id) + '/file', 'pdffile', 'application/pdf'); return true; }
+        if (a === 'delete') { ADM.confirm({ title: 'Delete this paper?', text: '“' + p.title + ' ' + p.year + '” and its uploaded files will be removed. Orders already placed keep their details.', onOk: () => ADM.post(base + '/' + enc(p.id), {}, 'DELETE') }); return true; }
+        return false;
+      },
+      bulk: [{ label: 'Enable printed', act: bulk('print_on') }, { label: 'Enable PDF', act: bulk('pdf_on') }, { label: 'Set price…', act: () => ADM.open('bulkPrice') }, { label: 'Publish', act: bulk('publish') }, { label: 'Move to draft', act: bulk('draft') }],
+      after: (r, el) => {
+        $$('[data-price]', el).forEach(i => i.onchange = () => {
+          const p = WK.papers.find(x => x.id === i.closest('tr').dataset.id), k = i.dataset.price;
+          ADM.send(base + '/' + enc(p.id) + '/quick', 'PATCH', { [k + '_price']: Number(i.value || 0) }).then(d => { p[k] = d[k]; toast('Price updated to ' + M(d[k]) + '.'); }).catch(e => { toast(e.message, 'err'); i.value = p[k]; });
+        });
+        $$('[data-fmt-on]', el).forEach(i => i.onchange = () => {
+          const p = WK.papers.find(x => x.id === i.closest('tr').dataset.id), k = i.dataset.fmtOn, n = i.closest('td').querySelector('.price-in');
+          ADM.send(base + '/' + enc(p.id) + '/quick', 'PATCH', { [k + '_on']: i.checked }).then(d => { p[k + 'On'] = d[k + 'On']; n.disabled = !d[k + 'On']; toast((k === 'print' ? 'Printed copy' : 'PDF download') + (d[k + 'On'] ? ' switched on.' : ' switched off.')); S.render(); }).catch(e => { toast(e.message, 'err'); i.checked = !!p[k + 'On']; });
+        });
+      }
     });
+    $('#bulkPriceApply').addEventListener('click', () => { const ids = [...S.sel]; ADM.close($('#bulkPrice')); bulk('price', { format: $('#bf').value, price: $('#bp').value })(ids); });
+    $$('[data-level-apply]').forEach(b => b.addEventListener('click', () => {
+      const lv = b.dataset.levelApply, apply = b.dataset.mode === 'apply';
+      const go = () => ADM.post(R.base + '/papers/defaults', { level: lv, print: $('#pr-' + lv).value, pdf: $('#pd-' + lv).value, time: $('#tm-' + lv).value, apply: apply ? '1' : '' });
+      if (apply) ADM.confirm({ title: 'Apply these prices to every ' + LV[lv] + ' paper?', text: 'This overwrites any paper-specific prices for this level.', ok: 'Apply to all', danger: false, icon: 'tag', onOk: go }); else go();
+    }));
   };
 
   /* ================= EXAM SETS ================= */
@@ -170,66 +205,98 @@
     $$('[data-lvl]').forEach(c => c.addEventListener('click', () => { $$('[data-lvl]').forEach(x => x.classList.toggle('on', x === c)); st.l = c.dataset.lvl; run(); }));
     run();
   }
+  const delCard = (root, path, title, text) => $(root).addEventListener('click', e => { const b = e.target.closest('[data-del]'); if (!b) return; ADM.confirm({ title, text, onOk: () => ADM.post(R.base + path + '/' + enc(b.dataset.del), {}, 'DELETE') }); });
   P['exam-sets'] = function () {
-    $('#setStats').innerHTML = [['Sets', WK.sets.length, 'layers', ''], ['Papers in sets', AD.sum(WK.sets, s => s.papers), 'file', 'y'], ['Total list value', M(AD.sum(WK.sets, s => s.worth)), 'tag', 'g'], ['Sets sold (12 months)', AD.sum(WK.sets, s => sold('set', s.id)), 'cart', 'p']].map(s => `<div class="card kpi mini"><div class="flex-b"><div><div class="kpi-l">${s[0]}</div><div class="kpi-v">${s[1]}</div></div><span class="kpi-ic ${s[3]}">${ic(s[2])}</span></div></div>`).join('');
-    cardsFilter('#cards', () => WK.sets, s => `<article class="card pcard"><div class="pm" style="padding:0"><div class="setstack" style="width:100%;border-radius:0">${s.preview.map(p => `<img src="${AD.img(WK.PAPER_IMG + p)}" alt="" loading="lazy">`).join('')}</div></div><div class="pb"><div class="flex-b"><span class="xs muted">${LV[s.level]} · ${s.year}</span>${stBadgeSimple(s.status)}</div><h3><a class="link-row" href="set-form.html?id=${s.id}">${esc(s.title)}</a></h3><p class="sm muted mb0">${s.papers} papers · ${s.subjects.length} subject${s.subjects.length > 1 ? 's' : ''}</p><div class="flex" style="gap:.5rem"><b>${M(s.price)}</b><span class="old">${M(s.worth)}</span><span class="badge nodot b-ok">Save ${Math.round((s.worth - s.price) / s.worth * 100)}%</span></div><div class="pf"><span class="xs muted">${stockH(s.stock, 10)}</span><div class="row-actions"><a class="btn btn-ic" href="set-form.html?id=${s.id}" aria-label="Edit">${ic('edit')}</a><a class="btn btn-ic" href="../exam-sets.html" target="_blank" rel="noopener" aria-label="View on website">${ic('external')}</a><button class="btn btn-ic" type="button" data-confirm="Delete this exam set?" data-text="It will be removed from the website. This is a design preview.">${ic('trash')}</button></div></div></div></article>`);
+    $('#setStats').innerHTML = [['Sets', WK.sets.length, 'layers', ''], ['Papers in sets', AD.sum(WK.sets, s => s.papers), 'file', 'y'], ['Total list value', M(AD.sum(WK.sets, s => s.worth)), 'tag', 'g'], ['Sets sold', AD.sum(WK.sets, s => sold('set', s.id)), 'cart', 'p']].map(s => `<div class="card kpi mini"><div class="flex-b"><div><div class="kpi-l">${s[0]}</div><div class="kpi-v">${s[1]}</div></div><span class="kpi-ic ${s[3]}">${ic(s[2])}</span></div></div>`).join('');
+    const formUrl = id => R.setForm + '?id=' + enc(id);
+    cardsFilter('#cards', () => WK.sets, s => `<article class="card pcard"><div class="pm" style="padding:0"><div class="setstack" style="width:100%;border-radius:0">${(s.preview || []).map(p => `<img src="${AD.img(WK.PAPER_IMG + p)}" alt="" loading="lazy">`).join('')}</div></div><div class="pb"><div class="flex-b"><span class="xs muted">${LV[s.level]} · ${esc(s.year)}</span>${stBadgeSimple(s.status)}</div><h3><a class="link-row" href="${formUrl(s.id)}">${esc(s.title)}</a></h3><p class="sm muted mb0">${s.papers} papers · ${s.subjects.length} subject${s.subjects.length === 1 ? '' : 's'}</p><div class="flex" style="gap:.5rem"><b>${M(s.price)}</b>${s.worth > s.price ? `<span class="old">${M(s.worth)}</span><span class="badge nodot b-ok">Save ${Math.round((s.worth - s.price) / s.worth * 100)}%</span>` : ''}</div><div class="pf"><span class="xs muted">${stockH(s.stock, s.low)}</span><div class="row-actions"><a class="btn btn-ic" href="${formUrl(s.id)}" aria-label="Edit">${ic('edit')}</a><a class="btn btn-ic" href="${R.siteSets}" target="_blank" rel="noopener" aria-label="View on website">${ic('external')}</a><button class="btn btn-ic" type="button" data-del="${esc(s.id)}" aria-label="Delete">${ic('trash')}</button></div></div></div></article>`);
+    delCard('#cards', '/exam-sets', 'Delete this exam set?', 'It will be removed from the website. Orders already placed keep their details.');
   };
 
   /* ================= HOLIDAY PACKAGES ================= */
   P.packages = function () {
-    $('#pkStats').innerHTML = [['Packages', WK.packages.length, 'gift', ''], ['Most chosen', WK.packages.filter(k => k.best).length, 'star', 'y'], ['Sold (12 months)', AD.sum(WK.packages, k => sold('pack', k.id)), 'cart', 'g'], ['Revenue from packages', M(AD.sum(AD.orders.filter(AD.counted), o => AD.sum(o.items.filter(i => i.type === 'pack'), i => i.price * i.qty))), 'wallet', 'p']].map(s => `<div class="card kpi mini"><div class="flex-b"><div><div class="kpi-l">${s[0]}</div><div class="kpi-v">${s[1]}</div></div><span class="kpi-ic ${s[3]}">${ic(s[2])}</span></div></div>`).join('');
-    cardsFilter('#cards', () => WK.packages, k => `<article class="pk${k.best ? ' best' : ''}">${k.best ? '<span class="ribbon">Most chosen</span>' : ''}<div class="flex-b"><span class="badge nodot b-info">${LV[k.level]}</span>${stBadgeSimple(k.status)}</div><h3 style="margin:.2rem 0 0">${esc(k.name)}</h3><span class="sm muted">${esc(k.for)}</span><ul>${k.includes.map(i => `<li>${esc(i)}</li>`).join('')}</ul><div class="amt">${M(k.price)} <small class="sm muted" style="font-family:var(--sans);font-weight:500">per holiday</small></div><div class="flex-b" style="margin-top:.4rem"><span class="xs muted">${stockH(k.stock, 10)} · ${sold('pack', k.id)} sold</span><div class="row-actions"><a class="btn btn-ic" href="package-form.html?id=${k.id}" aria-label="Edit">${ic('edit')}</a><a class="btn btn-ic" href="../holiday-packages.html" target="_blank" rel="noopener" aria-label="View on website">${ic('external')}</a><button class="btn btn-ic" type="button" data-confirm="Delete this package?" data-text="It will be removed from the website. This is a design preview.">${ic('trash')}</button></div></div></article>`);
+    const formUrl = id => R.packageForm + '?id=' + enc(id);
+    $('#pkStats').innerHTML = [['Packages', WK.packages.length, 'gift', ''], ['Most chosen', WK.packages.filter(k => k.best).length, 'star', 'y'], ['Sold', AD.sum(WK.packages, k => sold('pack', k.id)), 'cart', 'g'], ['Draft packages', WK.packages.filter(k => k.status !== 'published').length, 'edit', 'p']].map(s => `<div class="card kpi mini"><div class="flex-b"><div><div class="kpi-l">${s[0]}</div><div class="kpi-v">${s[1]}</div></div><span class="kpi-ic ${s[3]}">${ic(s[2])}</span></div></div>`).join('');
+    cardsFilter('#cards', () => WK.packages, k => `<article class="pk${k.best ? ' best' : ''}">${k.best ? '<span class="ribbon">Most chosen</span>' : ''}<div class="flex-b"><span class="badge nodot b-info">${LV[k.level]}</span>${stBadgeSimple(k.status)}</div><h3 style="margin:.2rem 0 0">${esc(k.name)}</h3><span class="sm muted">${esc(k.for)}</span><ul>${k.includes.map(i => `<li>${esc(i)}</li>`).join('')}</ul><div class="amt">${M(k.price)} <small class="sm muted" style="font-family:var(--sans);font-weight:500">per holiday</small></div><div class="flex-b" style="margin-top:.4rem"><span class="xs muted">${stockH(k.stock, k.low)} · ${sold('pack', k.id)} sold</span><div class="row-actions"><a class="btn btn-ic" href="${formUrl(k.id)}" aria-label="Edit">${ic('edit')}</a><a class="btn btn-ic" href="${R.sitePackages}" target="_blank" rel="noopener" aria-label="View on website">${ic('external')}</a><button class="btn btn-ic" type="button" data-del="${esc(k.id)}" aria-label="Delete">${ic('trash')}</button></div></div></article>`);
+    delCard('#cards', '/packages', 'Delete this package?', 'It will be removed from the website. Orders already placed keep their details.');
   };
 
   /* ================= SUBJECTS & LEVELS ================= */
   P.taxonomy = function () {
-    const sub = Object.entries(WK.SUBJECTS).map(([n, c]) => ({ id: n, name: n, c1: c[0], c2: c[1], c3: c[2], books: WK.books.filter(b => b.subject === n).length, papers: WK.papers.filter(p => p.subject === n).length }));
+    const base = R.base + '/taxonomy/subjects', sub = WK.adm.subjects;
+    const form = $('#subjForm'), method = $('#subjMethod');
+    const sync = () => { const pv = $('#subjPrev'); pv.style.setProperty('--c1', $('#sc1').value); pv.style.setProperty('--c2', $('#sc2').value); pv.style.setProperty('--c3', $('#sc3').value); $('#sjText').textContent = $('#sName').value || 'Subject'; };
     ADM.table('#tbl', {
       rows: () => sub, id: s => s.id, size: 20, csvName: 'wakata-subjects', placeholder: 'Search subjects…', search: s => s.name,
       cols: [{ k: 'name', label: 'Subject', sort: s => s.name, html: s => `<div class="flex"><div class="thumb sq"><div class="cv" style="--c1:${s.c1};--c2:${s.c2};--c3:${s.c3}"><span class="sj" style="font-size:.4rem">${esc(s.name.slice(0, 9))}</span></div></div><b>${esc(s.name)}</b></div>`, csv: s => s.name },
         { k: 'cols', label: 'Cover colours', html: s => `<span class="swatch" style="background:${s.c1}" title="${s.c1}"></span> <span class="swatch" style="background:${s.c2}" title="${s.c2}"></span> <span class="swatch" style="background:${s.c3}" title="${s.c3}"></span>`, csv: s => [s.c1, s.c2, s.c3].join(' ') },
         { k: 'books', label: 'Books', num: true, sort: s => s.books, html: s => s.books }, { k: 'papers', label: 'Past papers', num: true, sort: s => s.papers, html: s => s.papers }],
       actions: s => `<div class="row-actions"><button class="btn btn-ic" type="button" data-act="edit" aria-label="Edit">${ic('edit')}</button><button class="btn btn-ic" type="button" data-act="delete" aria-label="Delete">${ic('trash')}</button></div>`,
-      onAct: (a, s) => { if (a === 'edit') { $('#sName').value = s.name; ['c1', 'c2', 'c3'].forEach(k => $('#s' + k).value = s[k]); $('#subjTitle').textContent = 'Edit subject'; ADM.open('subjModal'); sync(); return true; } return false; }
+      onAct: (a, s) => {
+        if (a === 'edit') { form.action = base + '/' + s.id; method.value = 'PUT'; $('#sName').value = s.name; ['c1', 'c2', 'c3'].forEach(k => $('#s' + k).value = s[k]); $('#subjTitle').textContent = 'Edit subject'; ADM.open('subjModal'); sync(); return true; }
+        if (a === 'delete') { ADM.confirm({ title: 'Delete this subject?', text: s.books || s.papers ? '“' + s.name + '” is used by ' + s.books + ' book(s) and ' + s.papers + ' paper(s), so it cannot be deleted until those are moved.' : '“' + s.name + '” will be removed from the subject lists.', onOk: () => ADM.post(base + '/' + s.id, {}, 'DELETE') }); return true; }
+        return false;
+      }
     });
-    const sync = () => { const pv = $('#subjPrev'); pv.style.setProperty('--c1', $('#sc1').value); pv.style.setProperty('--c2', $('#sc2').value); pv.style.setProperty('--c3', $('#sc3').value); $('#sjText').textContent = $('#sName').value || 'Subject'; };
-    $$('#subjModal input').forEach(i => i.addEventListener('input', sync)); $('#newSubj').addEventListener('click', () => { $('#subjTitle').textContent = 'Add a subject'; $('#sName').value = ''; sync(); });
+    $$('#subjModal input').forEach(i => i.addEventListener('input', sync));
+    $('#newSubj').addEventListener('click', () => { form.action = base; method.value = 'POST'; $('#subjTitle').textContent = 'Add a subject'; $('#sName').value = ''; sync(); });
     sync();
   };
 
   /* ================= MEDIA ================= */
   P.media = function () {
-    const files = []; const seen = new Set();
-    WK.books.forEach(b => { [['img', 'Cover'], ['full', 'Back / inside']].forEach(([k, l]) => { if (b[k] && !seen.has(b[k])) { seen.add(b[k]); files.push({ path: b[k], name: b[k].split('/').pop(), kind: 'books', use: l + ': ' + b.title, size: 60 + (b[k].length * 7 % 120) }); } }); });
-    Object.keys(WK.papers.reduce((a, p) => { if (p.img) a[p.img] = 1; return a; }, {})).forEach(p => files.push({ path: p, name: p.split('/').pop(), kind: 'papers', use: 'Past paper sheet', size: 90 + p.length * 3 % 140 }));
-    ['maths-p1-2026-b.jpg'].forEach(n => { if (!seen.has(WK.PAPER_IMG + n)) files.push({ path: WK.PAPER_IMG + n, name: n, kind: 'papers', use: 'Exam set preview', size: 120 }); });
-    files.push({ path: 'assets/img/logo.png', name: 'logo.png', kind: 'brand', use: 'Site logo', size: 38 }, { path: 'assets/img/logo-white.png', name: 'logo-white.png', kind: 'brand', use: 'Logo for dark backgrounds', size: 36 }, { path: 'assets/img/favicon.png', name: 'favicon.png', kind: 'brand', use: 'Browser tab icon', size: 6 });
+    const files = WK.adm.media, base = R.base;
     let kind = '', q = '';
-    const run = () => { const r = files.filter(f => (!kind || f.kind === kind) && (!q || (f.name + f.use).toLowerCase().includes(q))); $('#mediaGrid').innerHTML = r.map(f => `<div class="mi" tabindex="0" role="button" data-p="${f.path}"><div class="im"><img src="${AD.img(f.path)}" alt="" loading="lazy" style="${f.kind === 'brand' ? 'object-fit:contain;padding:1rem;background:var(--blue)' : ''}"></div><div class="t"><b>${f.name}</b><span class="muted">${f.size} KB</span></div></div>`).join('') || '<div class="empty" style="grid-column:1/-1">No files.</div>'; };
+    const run = () => { const r = files.filter(f => (!kind || f.kind === kind) && (!q || (f.name + f.use).toLowerCase().includes(q))); $('#mediaGrid').innerHTML = r.map(f => `<div class="mi" tabindex="0" role="button" data-p="${esc(f.path)}"><div class="im"><img src="${esc(f.url)}" alt="" loading="lazy" style="${f.kind === 'brand' ? 'object-fit:contain;padding:1rem;background:var(--blue)' : ''}"></div><div class="t"><b>${esc(f.name)}</b><span class="muted">${f.size} KB</span></div></div>`).join('') || '<div class="empty" style="grid-column:1/-1">No files.</div>'; };
     $$('[data-kind]').forEach(c => c.addEventListener('click', () => { $$('[data-kind]').forEach(x => x.classList.toggle('on', x === c)); kind = c.dataset.kind; run(); }));
     $('[data-card-q]').addEventListener('input', e => { q = e.target.value.trim().toLowerCase(); run(); });
-    $('#mediaGrid').addEventListener('click', e => { const t = e.target.closest('.mi'); if (!t) return; $$('.mi').forEach(x => x.classList.toggle('on', x === t)); const f = files.find(x => x.path === t.dataset.p); $('#mediaSide').innerHTML = `<div class="coverprev" style="margin-bottom:1rem"><img src="${AD.img(f.path)}" alt=""></div><h3 style="word-break:break-all">${f.name}</h3><dl class="dl"><dt>Used for</dt><dd>${esc(f.use)}</dd><dt>Size</dt><dd>${f.size} KB</dd><dt>Folder</dt><dd>${f.path.replace(f.name, '')}</dd></dl><div class="flex mt wrapf"><button class="btn btn-line btn-sm" type="button" data-copy="${f.path}">${ic('copy')}Copy path</button><button class="btn btn-line btn-sm" type="button" data-toast="Replace file: design preview.">${ic('upload')}Replace</button><button class="btn btn-danger-l btn-sm" type="button" data-confirm="Delete this file?" data-text="Pages using this image will show a generated cover instead. Design preview only.">${ic('trash')}Delete</button></div>`; });
+    const show = t => {
+      $$('.mi').forEach(x => x.classList.toggle('on', x === t)); const f = files.find(x => x.path === t.dataset.p);
+      $('#mediaSide').innerHTML = `<div class="coverprev" style="margin-bottom:1rem"><img src="${esc(f.url)}" alt=""></div><h3 style="word-break:break-all">${esc(f.name)}</h3><dl class="dl"><dt>Used for</dt><dd>${esc(f.use)}</dd><dt>Size</dt><dd>${f.size} KB</dd><dt>Folder</dt><dd>${esc(f.path.replace(f.name, '') || 'Site files')}</dd></dl><div class="flex mt wrapf"><button class="btn btn-line btn-sm" type="button" data-copy="${esc(f.path)}">${ic('copy')}Copy path</button>${f.locked ? '' : `<button class="btn btn-line btn-sm" type="button" data-replace>${ic('upload')}Replace</button><button class="btn btn-danger-l btn-sm" type="button" data-del>${ic('trash')}Delete</button>`}</div>`;
+      const rep = $('[data-replace]', $('#mediaSide')), del = $('[data-del]', $('#mediaSide'));
+      rep && rep.addEventListener('click', () => ADM.uploadTo(base + '/media/replace', 'file', 'image/*', { path: f.path }));
+      del && del.addEventListener('click', () => ADM.confirm({ title: 'Delete this file?', text: f.refs ? 'Pages using this image will show a generated cover instead.' : 'Nothing uses this image.', onOk: () => ADM.post(base + '/media/delete', { path: f.path }) }));
+    };
+    $('#mediaGrid').addEventListener('click', e => { const t = e.target.closest('.mi'); if (t) show(t); });
     run();
-    ADM.table('#pdfTbl', { rows: () => WK.papers, id: p => p.id, size: 8, placeholder: 'Search PDF files…', csvName: 'wakata-pdf-files', search: p => p.title + p.year + p.subject, cols: [{ k: 'f', label: 'File', sort: p => p.subject + p.year, html: p => `<div class="filechip" style="border:0;padding:0"><span class="fi">PDF</span><div><b>${p.subject.toLowerCase().replace(/[^a-z]+/g, '-')}-${p.paper.toLowerCase().replace(' ', '')}-${p.year}.pdf</b><small>${esc(p.title)} ${p.year} · ${LV[p.level]}</small></div></div>` }, { k: 's', label: 'Status', sort: p => p.hasFile ? 1 : 0, html: p => p.hasFile ? '<span class="badge b-ok">Uploaded</span>' : '<span class="badge b-bad">Missing</span>' }, { k: 'sz', label: 'Size', html: p => p.hasFile ? (0.6 + (p.year % 7) / 5).toFixed(1) + ' MB' : '—' }, { k: 'd', label: 'Downloads', num: true, html: p => p.hasFile ? sold('paper', p.id) * 2 : 0 }], actions: p => `<div class="row-actions"><button class="btn btn-ic" type="button" data-act="${p.hasFile ? 'replace' : 'upload'}" aria-label="Upload">${ic('upload')}</button>${p.hasFile ? `<button class="btn btn-ic" type="button" data-act="download" aria-label="Download">${ic('download')}</button>` : ''}</div>` });
+    const pdf = p => WK.adm.downloads[p.id] || 0;
+    ADM.table('#pdfTbl', { rows: () => WK.papers, id: p => p.id, size: 8, placeholder: 'Search PDF files…', csvName: 'wakata-pdf-files', search: p => p.title + p.year + p.subject,
+      cols: [{ k: 'f', label: 'File', sort: p => p.subject + p.year, html: p => `<div class="filechip" style="border:0;padding:0"><span class="fi">PDF</span><div><b>${esc(paperFile(p))}</b><small>${esc(p.title)} ${p.year} · ${LV[p.level]}</small></div></div>` }, { k: 's', label: 'Status', sort: p => p.hasFile ? 1 : 0, html: p => p.hasFile ? '<span class="badge b-ok">Uploaded</span>' : '<span class="badge b-bad">Missing</span>' }, { k: 'sz', label: 'Size', html: p => p.hasFile ? p.fileMb + ' MB' : '—' }, { k: 'd', label: 'Downloads', num: true, sort: p => pdf(p), html: p => pdf(p).toLocaleString() }],
+      actions: p => `<div class="row-actions"><button class="btn btn-ic" type="button" data-act="${p.hasFile ? 'replace' : 'upload'}" aria-label="Upload">${ic('upload')}</button>${p.hasFile ? `<a class="btn btn-ic" href="${base}/papers/${enc(p.id)}/file" aria-label="Download">${ic('download')}</a>` : ''}</div>`,
+      onAct: (a, p) => { if (a === 'upload' || a === 'replace') { ADM.uploadTo(base + '/papers/' + enc(p.id) + '/file', 'pdffile', 'application/pdf'); return true; } return false; } });
   };
 
   /* ================= INVENTORY ================= */
   P.inventory = function () {
-    const rows = [...WK.books.map(b => ({ id: b.id, type: 'Book', kind: 'book', name: b.title, sku: b.sku, stock: b.stock, low: b.low, price: b.price, rec: b })), ...WK.sets.map(s => ({ id: s.id, type: 'Exam set', kind: 'set', name: s.title, sku: s.sku, stock: s.stock, low: 10, price: s.price, rec: s })), ...WK.packages.map(k => ({ id: k.id, type: 'Holiday package', kind: 'pack', name: k.name, sku: k.sku, stock: k.stock, low: 10, price: k.price, rec: k })), ...WK.papers.filter(p => p.printOn).map(p => ({ id: p.id, type: 'Printed paper', kind: 'paper', name: p.title + ' ' + p.year, sku: 'PP-' + p.id.slice(-8).toUpperCase(), stock: p.printStock, low: 25, price: p.print, rec: p }))];
-    const units = AD.sum(rows, r => r.stock), value = AD.sum(rows, r => r.stock * r.price), low = rows.filter(r => r.stock > 0 && r.stock <= r.low).length, out = rows.filter(r => r.stock <= 0).length;
-    $('#invStats').innerHTML = [['Stock lines', rows.length, 'box', ''], ['Units on hand', units.toLocaleString(), 'layers', 'g'], ['Stock value (at retail)', M(value), 'wallet', 'p'], ['Running low', low, 'alert', 'y'], ['Out of stock', out, 'x', 'r']].map(s => `<div class="card kpi mini"><div class="flex-b"><div><div class="kpi-l">${s[0]}</div><div class="kpi-v">${s[1]}</div></div><span class="kpi-ic ${s[3]}">${ic(s[2])}</span></div></div>`).join('');
-    const bt = {}; rows.forEach(r => bt[r.type] = (bt[r.type] || 0) + r.stock);
-    C.donut('#chStock', { items: Object.entries(bt).map(([k, v], i) => ({ name: k, value: v, color: colors[[0, 2, 3, 1][i % 4]] })), centerLabel: 'Units on hand', fmt: v => Math.round(v).toLocaleString(), size: 170 });
-    const wk = Array.from({ length: 10 }, (_, i) => 'Wk ' + (i + 1)); C.line('#chMove', { labels: wk, series: [{ name: 'Received / printed', data: [420, 160, 300, 90, 520, 210, 140, 380, 260, 330], color: 'var(--c4)' }, { name: 'Sold', data: [310, 280, 240, 330, 290, 410, 360, 300, 450, 380], color: 'var(--c1)' }], height: 230, fmt: v => Math.round(v) });
+    const base = R.base + '/inventory';
+    const rows = [...WK.books.map(b => ({ id: b.id, type: 'Book', kind: 'book', name: b.title, sku: b.sku, stock: b.stock, low: b.low, price: b.price, rec: b })), ...WK.sets.map(s => ({ id: s.id, type: 'Exam set', kind: 'set', name: s.title, sku: s.sku, stock: s.stock, low: s.low, price: s.price, rec: s })), ...WK.packages.map(k => ({ id: k.id, type: 'Holiday package', kind: 'pack', name: k.name, sku: k.sku, stock: k.stock, low: k.low, price: k.price, rec: k })), ...WK.papers.filter(p => p.printOn).map(p => ({ id: p.id, type: 'Printed paper', kind: 'paper', name: p.title + ' ' + p.year, sku: 'PP-' + p.id.slice(-8).toUpperCase(), stock: p.printStock, low: p.low, price: p.print, rec: p }))];
+    const refs = r => r.kind + ':' + r.id;
+    const stats = () => { const units = AD.sum(rows, r => r.stock), value = AD.sum(rows, r => r.stock * r.price), low = rows.filter(r => r.stock > 0 && r.stock <= r.low).length, out = rows.filter(r => r.stock <= 0).length; $('#invStats').innerHTML = [['Stock lines', rows.length, 'box', ''], ['Units on hand', units.toLocaleString(), 'layers', 'g'], ['Stock value (at retail)', M(value), 'wallet', 'p'], ['Running low', low, 'alert', 'y'], ['Out of stock', out, 'x', 'r']].map(s => `<div class="card kpi mini"><div class="flex-b"><div><div class="kpi-l">${s[0]}</div><div class="kpi-v">${s[1]}</div></div><span class="kpi-ic ${s[3]}">${ic(s[2])}</span></div></div>`).join(''); };
+    const donut = () => { const bt = {}; rows.forEach(r => bt[r.type] = (bt[r.type] || 0) + r.stock); C.donut('#chStock', { items: Object.entries(bt).map(([k, v], i) => ({ name: k, value: v, color: colors[[0, 2, 3, 1][i % 4]] })), centerLabel: 'Units on hand', fmt: v => Math.round(v).toLocaleString(), size: 170 }); };
+    stats(); donut();
+    const mv = WK.adm.movement; C.line('#chMove', { labels: mv.labels, series: [{ name: 'Received / printed', data: mv.received, color: 'var(--c4)' }, { name: 'Sold', data: mv.sold, color: 'var(--c1)' }], height: 230, fmt: v => Math.round(v) });
     const tabs = { items: [{ k: 'all', label: 'All stock' }, { k: 'low', label: 'Running low', fn: r => r.stock > 0 && r.stock <= r.low }, { k: 'out', label: 'Out of stock', fn: r => r.stock <= 0 }, { k: 'ok', label: 'Healthy', fn: r => r.stock > r.low }] };
-    ADM.table('#tbl', {
-      rows: () => rows, id: r => r.kind + ':' + r.id, size: 10, csvName: 'wakata-inventory', placeholder: 'Search item or SKU…', tabs, search: r => [r.name, r.sku, r.type].join(' '), sort: 'stock', dir: 1,
+    const reprint = list => { const r = list.filter(x => x.stock <= x.low); if (!r.length) { toast('Nothing is running low.'); return; } ADM.csv('wakata-reprint-list', ['Item', 'Type', 'SKU', 'On hand', 'Alert at', 'Suggested reprint'], r.map(x => [x.name, x.type, x.sku, x.stock, x.low, Math.max(x.low * 3 - x.stock, 0)])); };
+    let cur = null;
+    const S = ADM.table('#tbl', {
+      rows: () => rows, id: r => r.kind + ':' + r.id, size: 10, select: true, csvName: 'wakata-inventory', placeholder: 'Search item or SKU…', tabs, search: r => [r.name, r.sku, r.type].join(' '), sort: 'stock', dir: 1,
       filters: [{ k: 't', label: 'Type', all: 'All item types', options: [['Book', 'Books'], ['Printed paper', 'Printed papers'], ['Exam set', 'Exam sets'], ['Holiday package', 'Holiday packages']], fn: (r, v) => r.type === v }],
-      cols: [{ k: 'n', label: 'Item', sort: r => r.name, html: r => `<div class="cell-prod">${AD.thumbOf(r.kind, r.rec)}<div><b>${esc(r.name)}</b><small>${r.sku} · ${r.type}</small></div></div>`, csv: r => r.name }, { k: 'stock', label: 'On hand', sort: r => r.stock, html: r => stockH(r.stock, r.low), csv: r => r.stock }, { k: 'low', label: 'Alert at', num: true, html: r => r.low }, { k: 'cover', label: 'Cover', html: r => { const w = Math.min(100, r.stock / (r.low * 4) * 100); return `<div class="progress" style="width:110px"><i style="width:${w}%;background:${r.stock <= 0 ? 'var(--pen)' : r.stock <= r.low ? 'var(--warn)' : 'var(--ok)'}"></i></div>`; } }, { k: 'val', label: 'Value', num: true, sort: r => r.stock * r.price, html: r => M(r.stock * r.price) }],
+      cols: [{ k: 'n', label: 'Item', sort: r => r.name, html: r => `<div class="cell-prod">${AD.thumbOf(r.kind, r.rec)}<div><b>${esc(r.name)}</b><small>${esc(r.sku)} · ${r.type}</small></div></div>`, csv: r => r.name }, { k: 'stock', label: 'On hand', sort: r => r.stock, html: r => stockH(r.stock, r.low), csv: r => r.stock }, { k: 'low', label: 'Alert at', num: true, html: r => r.low }, { k: 'cover', label: 'Cover', html: r => { const w = Math.min(100, r.stock / (Math.max(r.low, 1) * 4) * 100); return `<div class="progress" style="width:110px"><i style="width:${w}%;background:${r.stock <= 0 ? 'var(--pen)' : r.stock <= r.low ? 'var(--warn)' : 'var(--ok)'}"></i></div>`; } }, { k: 'val', label: 'Value', num: true, sort: r => r.stock * r.price, html: r => M(r.stock * r.price) }],
       actions: r => `<div class="row-actions"><button class="btn btn-line btn-sm" type="button" data-act="adjust">${ic('sliders')}Adjust</button></div>`,
-      onAct: (a, r) => { if (a === 'adjust') { $('#adjName').textContent = r.name; $('#adjCur').textContent = r.stock; ADM.open('adjModal'); return true; } return false; },
-      bulk: [{ label: 'Set alert level…' }, { label: 'Mark for reprint' }]
+      onAct: (a, r) => { if (a === 'adjust') { cur = r; $('#adjName').textContent = r.name; $('#adjCur').textContent = r.stock; $('#aq').value = 0; $('#an').value = ''; ADM.open('adjModal'); return true; } return false; },
+      bulk: [{ label: 'Set alert level…', act: () => ADM.open('alertModal') }, { label: 'Mark for reprint', act: ids => { const set = new Set(ids); reprint(rows.filter(r => set.has(r.kind + ':' + r.id))); } }]
     });
+    $('#adjSave').addEventListener('click', () => {
+      if (!cur) return; const r = cur;
+      ADM.send(base + '/adjust', 'POST', { kind: r.kind, id: r.id, mode: $('#at').value, qty: Number($('#aq').value || 0), reason: $('#ar').value, note: $('#an').value })
+        .then(d => { r.stock = d.stock; if (r.kind === 'paper') r.rec.printStock = d.stock; else r.rec.stock = d.stock; ADM.close($('#adjModal')); stats(); donut(); S.render(); toast('Stock of ' + esc(r.name) + ' is now ' + d.stock + '.'); })
+        .catch(e => toast(esc(e.message), 'err'));
+    });
+    $('#alertSave').addEventListener('click', () => {
+      const sel = [...S.sel], lvl = Number($('#alv').value);
+      ADM.send(base + '/alert', 'POST', { items: sel, level: lvl }).then(d => { rows.forEach(r => { if (S.sel.has(refs(r))) { r.low = d.level; r.rec.low = d.level; } }); S.sel.clear(); ADM.close($('#alertModal')); stats(); S.render(); toast('Alert level set to ' + d.level + ' for ' + d.updated + ' item(s).'); }).catch(e => toast(esc(e.message), 'err'));
+    });
+    $('#reprintBtn').addEventListener('click', () => reprint(rows));
   };
 
   /* ================= CUSTOMERS ================= */

@@ -108,7 +108,9 @@ class Catalogue
             'desc'    => $b->description,
         ], fn ($v) => $v !== null && $v !== ''));
 
-        $papers = Paper::published()->shopOrder()->get()->map(fn (Paper $p) => [
+        // A paper with both formats switched off is not for sale. When only one is off, noPrint / noPdf tell the shop
+        // to hide that choice (the keys are absent when a format is on, so the usual payload is unchanged).
+        $papers = Paper::published()->shopOrder()->get()->filter(fn (Paper $p) => $p->onSale())->map(fn (Paper $p) => array_filter([
             'id'      => $p->slug,
             'level'   => $levelCode[$p->level_id] ?? '',
             'subject' => $subject[$p->subject_id] ?? '',
@@ -119,7 +121,9 @@ class Catalogue
             'pdf'     => $p->pdf_price,
             'img'     => $p->cover_image,
             'title'   => $p->title,
-        ]);
+            'noPrint' => $p->print_on ? null : true,
+            'noPdf'   => $p->pdf_on ? null : true,
+        ], fn ($v, $k) => ! in_array($k, ['noPrint', 'noPdf'], true) || $v !== null, ARRAY_FILTER_USE_BOTH));
 
         $sets = ExamSet::published()->shopOrder()->get()->map(fn (ExamSet $s) => [
             'id'       => $s->slug,

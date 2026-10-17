@@ -26,6 +26,7 @@ a throwaway password and production refuses to seed the admin.
 | Customer account | `routes/account.php`, `resources/views/account` |
 | Admin console | `routes/admin.php`, `resources/views/admin` |
 | Catalogue (books, papers, sets, packages, levels, subjects) | `app/Models`, `app/Support/Catalogue.php`, `database/seeders/data/catalogue.json` |
+| Admin catalogue (module 7) | `app/Http/Controllers/Admin/*Controller.php`, `app/Support/AdminCatalogue.php`, `Inventory.php`, `Media.php`, `public/assets/admin/js/pages.js` |
 | Cart and checkout | `app/Support/Cart.php`, `CartController`, `CheckoutController`, `Order` and `OrderItem` models, `config/wakata.php` (delivery fees, payment methods) |
 
 ## Catalogue
@@ -48,6 +49,29 @@ Order numbers are `WK-` plus 10000 plus the row id (the first order is `WK-10001
 a signed-in customer's order is attached to their account. Orders start as `pending` with payment `pending`: no payment
 gateway is connected yet, so staff confirm payment by phone or email. Delivery fees and payment methods are in
 `config/wakata.php`. Set `WAKATA_ORDER_NOTIFY` in `.env` to email staff about every new order.
+
+## Admin catalogue (module 7)
+
+Books, past papers, exam sets, holiday packages, subjects and levels, media and inventory are managed under
+`/admin`. Everyone signed in to the admin can look; saving, deleting, uploading and stock changes also need the role
+super admin, manager or editor (`Admin::canManageCatalogue()`, middleware `admin.catalogue`).
+
+- **Saving.** The forms are real Laravel forms. "Save as draft" hides the item from the website, "Save and publish" shows
+  it. Saved changes appear on the website straight away (the catalogue cache is cleared on every save).
+- **Past papers.** Printed and PDF can each be switched on or off with their own price. A paper with both off is not
+  sold. Paper PDFs (and marking guides, exam set guides, package timetables) are stored on the **private** `local`
+  disk, never under `public/`, and customers only get them through their library (download limit applies).
+- **Bulk PDF upload.** Name files like `mathematics-paper1-2026.pdf`. If two levels share the name, start with the level:
+  `uce-biology-paper1-2023.pdf`.
+- **Images.** Covers and paper sheets are stored in `public/assets/img/books` and `public/assets/img/papers`
+  (`config('wakata.image_dir')`). On a host where `public/` is read-only, point that setting at a writable folder.
+- **Inventory.** Printed stock for books, printed papers, exam sets and packages. Every change is logged in
+  `stock_adjustments` (add, remove or set; stock never goes below zero). Starting stock is 0 for everything: enter the
+  real counts under Inventory. Selling does not reduce stock yet; that is wired to order confirmation in module 8.
+- **Settings saved for module 8.** The form switches for bulk threshold, watermark, automatic email, "include marking
+  guides" and "allow swapping a book" are saved (in each table's `options` column) but only take effect when orders,
+  payments and deliveries are built.
+- **Sales numbers** on these pages count paid orders that were not cancelled or refunded.
 
 ## Tests
 

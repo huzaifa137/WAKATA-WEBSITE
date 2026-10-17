@@ -30,6 +30,12 @@ class Admin extends Model
         ];
     }
 
+    /** Roles that may change the catalogue (prices, stock, files). Support staff can look but not edit. */
+    public function canManageCatalogue(): bool
+    {
+        return in_array($this->role, ['super_admin', 'manager', 'editor'], true);
+    }
+
     public function getRoleLabelAttribute(): string
     {
         return self::ROLES[$this->role] ?? ucfirst(str_replace('_', ' ', (string) $this->role));

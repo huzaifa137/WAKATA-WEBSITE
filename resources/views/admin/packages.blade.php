@@ -2,6 +2,7 @@
 
 @section('title', 'Holiday packages')
 @section('page', 'packages')
+@section('adm', '1')
 
 @section('content')
 <div class="pagehead"><div><h1>Holiday packages</h1><p>Ready-made bundles of workbooks, tests and mock papers.</p></div><div class="ph-actions"><a class="btn btn-primary btn-sm" href="{{ route('admin.package-form') }}">@icon('plus')New package</a></div></div>

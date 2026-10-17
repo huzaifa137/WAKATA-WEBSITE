@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin.auth'     => \App\Http\Middleware\LoggedAdmin::class,
             'admin.guest'    => \App\Http\Middleware\GuestAdmin::class,
+            'admin.catalogue' => \App\Http\Middleware\CanManageCatalogue::class,
             'customer.auth'  => \App\Http\Middleware\LoggedCustomer::class,
             'customer.guest' => \App\Http\Middleware\GuestCustomer::class,
         ]);

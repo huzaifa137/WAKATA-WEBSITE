@@ -29,11 +29,17 @@ window.AD = (function () {
   const TYPE_LABEL = { book: 'Book', paper: 'Past paper', set: 'Exam set', pack: 'Holiday package' };
 
   /* ---------- enrich catalogue (stock, sku, status) ---------- */
-  WK.books.forEach((b, i) => { b.sku = 'BK-' + String(100 + i); b.stock = [64, 12, 34, 58, 140, 220, 86, 9, 310, 47, 18][i % 11] + (i % 3) * 7; b.low = 20; b.status = 'published'; b.featured = i < 4; });
-  WK.books[7].status = 'draft';
-  WK.papers.forEach((p, i) => { p.pdfOn = true; p.printOn = true; p.hasFile = (i % 9) !== 4; p.printStock = [0, 40, 120, 260, 75, 18][i % 6] + 10; p.status = (i % 23 === 5) ? 'draft' : 'published'; if (!p.hasFile && i % 18 === 4) p.pdfOn = false; });
-  WK.sets.forEach((s, i) => { s.sku = 'SET-' + (200 + i); s.stock = [24, 18, 60, 41, 7, 33][i]; s.status = 'published'; s.printOn = true; s.pdfOn = false; });
-  WK.packages.forEach((k, i) => { k.sku = 'PK-' + (300 + i); k.stock = [30, 12, 26, 19, 8, 22][i]; k.status = 'published'; });
+  /* Module 7: the catalogue pages get the REAL catalogue from Laravel (WK.adm: drafts included, real SKU, stock, formats, files).
+     Other admin pages still use the sample values below until their own module is built. */
+  if (WK.adm) {
+    ['books', 'papers', 'sets', 'packages'].forEach(k => { WK[k] = WK.adm[k]; });
+  } else {
+    WK.books.forEach((b, i) => { b.sku = 'BK-' + String(100 + i); b.stock = [64, 12, 34, 58, 140, 220, 86, 9, 310, 47, 18][i % 11] + (i % 3) * 7; b.low = 20; b.status = 'published'; b.featured = i < 4; });
+    if (WK.books[7]) WK.books[7].status = 'draft';
+    WK.papers.forEach((p, i) => { p.pdfOn = true; p.printOn = true; p.hasFile = (i % 9) !== 4; p.printStock = [0, 40, 120, 260, 75, 18][i % 6] + 10; p.status = (i % 23 === 5) ? 'draft' : 'published'; if (!p.hasFile && i % 18 === 4) p.pdfOn = false; });
+    WK.sets.forEach((s, i) => { s.sku = 'SET-' + (200 + i); s.stock = [24, 18, 60, 41, 7, 33][i]; s.status = 'published'; s.printOn = true; s.pdfOn = false; });
+    WK.packages.forEach((k, i) => { k.sku = 'PK-' + (300 + i); k.stock = [30, 12, 26, 19, 8, 22][i]; k.status = 'published'; });
+  }
 
   /* ---------- customers ---------- */
   const schools = ['Green Hill Secondary School', 'Lakeview Primary School', 'St. Gabriel Girls\u2019 School', 'Victoria Heights College', 'Nakawa Model Primary', 'Rubaga Hill Secondary', 'Kira Road Junior School', 'Hope Valley Primary School', 'Bukoto Royal College', 'Entebbe Lakeside High', 'Mukono Central Secondary', 'Kasubi Parents Primary', 'Namugongo Heights School', 'Wakiso Town Academy', 'Mengo Brook Secondary', 'Ntinda Grace Primary', 'Kawempe Unity College', 'Busega Light Secondary', 'Makindye Progressive School', 'Nansana Peak Primary', 'Lubowa International School', 'Gayaza Vision College'];
@@ -143,14 +149,14 @@ window.AD = (function () {
   const fmtDate = ts => { const d = new Date(ts); return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); };
   const fmtTime = ts => { const d = new Date(ts); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
   const rel = ts => { const s = Math.max(1, (NOW - ts) / 1000); if (s < 60) return 'just now'; if (s < 3600) return Math.floor(s / 60) + ' min ago'; if (s < 86400) return Math.floor(s / 3600) + ' h ago'; if (s < 2592000) return Math.floor(s / 86400) + ' d ago'; return fmtDate(ts); };
-  const img = p => p ? '../' + p : '';
+  const img = p => !p ? '' : (/^(https?:)?\/\//.test(p) || p[0] === '/') ? p : '../' + p;   /* the catalogue now sends full URLs */
   const initials = s => s.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const genThumb = (subject, cls) => { const c = WK.SUBJECTS[subject] || WK.SUBJECTS.Mathematics; return `<div class="thumb ${cls || ''}"><div class="cv" style="--c1:${c[0]};--c2:${c[1]};--c3:${c[2]}"><span class="sj">${esc(subject)}</span></div></div>`; };
   const thumbOf = (type, rec) => {
     if (type === 'book') return rec.img ? `<div class="thumb"><img src="${img(rec.img)}" alt="" loading="lazy"></div>` : genThumb(rec.subject);
     if (type === 'paper') return rec.img ? `<div class="thumb"><img src="${img(rec.img)}" alt="" loading="lazy"></div>` : genThumb(rec.subject);
-    if (type === 'set') return `<div class="thumb"><img src="${img(WK.PAPER_IMG + rec.preview[0])}" alt="" loading="lazy"></div>`;
+    if (type === 'set') return rec.preview && rec.preview[0] ? `<div class="thumb"><img src="${img(WK.PAPER_IMG + rec.preview[0])}" alt="" loading="lazy"></div>` : genThumb('Literacy');
     return genThumb('Literacy');
   };
   const recOf = (type, id) => WK.byId(type === 'book' ? WK.books : type === 'paper' ? WK.papers : type === 'set' ? WK.sets : WK.packages, id);
