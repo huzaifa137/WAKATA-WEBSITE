@@ -119,14 +119,12 @@ class SupportController extends Controller
     /** A mail problem never loses the message: it is already saved. */
     private function tellStaff(SupportThread $thread, SupportMessage $message): void
     {
-        if (! ($to = config('wakata.support_notify'))) {
-            return;
-        }
-
-        try {
-            Mail::to($to)->send(new SupportMessageStaffMail($thread->load(['customer', 'order']), $message));
-        } catch (\Throwable $e) {
-            report($e);
+        foreach (\App\Support\SiteSettings::alertRecipients('messages') as $to) {
+            try {
+                Mail::to($to)->send(new SupportMessageStaffMail($thread->load(['customer', 'order']), $message));
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
     }
 

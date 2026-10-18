@@ -1,12 +1,13 @@
 @extends('layouts.site')
 
-@section('title', 'Cart and checkout | WAKATA Stationers')
+@section('title', \App\Support\SiteContent::seo('cart', 'title'))
+@section('description', \App\Support\SiteContent::seo('cart', 'desc'))
 @section('page', 'cartPage')
 
 @section('content')
-<section class="page-head"><div class="wrap"><div class="crumbs"><a href="{{ route('site.home') }}">Home</a><span>/</span>Cart</div><h1>Your cart</h1><p>Review your items, choose how you want to receive them and pay.</p></div></section>
+<section class="page-head"><div class="wrap"><div class="crumbs"><a href="{{ route('site.home') }}">Home</a><span>/</span>Cart</div><h1>@c('cart.title')</h1><p>@c('cart.intro')</p></div></section>
 <div class="wrap">
-  <div id="cart-empty" class="panel cart-empty" style="margin-block:2.4rem 4rem" hidden><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.5 12.5a1 1 0 0 0 1 .8h9.2a1 1 0 0 0 1-.8L21 7H6"/></svg><h2>Your cart is empty</h2><p class="muted">Add books, past papers or a holiday package to get started.</p><a class="btn btn-primary" href="{{ route('site.books') }}">Shop books</a> <a class="btn btn-line" href="{{ route('site.papers') }}">Find past papers</a></div>
+  <div id="cart-empty" class="panel cart-empty" style="margin-block:2.4rem 4rem" hidden><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.5 12.5a1 1 0 0 0 1 .8h9.2a1 1 0 0 0 1-.8L21 7H6"/></svg><h2>@c('cart.empty_title')</h2><p class="muted">@c('cart.empty_text')</p><a class="btn btn-primary" href="{{ route('site.books') }}">Shop books</a> <a class="btn btn-line" href="{{ route('site.papers') }}">Find past papers</a></div>
   <div id="cart-wrap" class="cartgrid">
     <div class="panel"><h2>Items</h2><div id="lines"></div><button class="btn btn-line btn-sm" id="clear" type="button" style="margin-top:1rem">Clear cart</button></div>
     <form class="panel" id="checkout" novalidate>
@@ -37,5 +38,5 @@
   </div>
 </div>
 <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><div class="box"><div class="okc"><svg viewBox="0 0 24 24"><polyline points="4 13 10 19 21 6"/></svg></div>
-  <h2 id="mt">Order received</h2><p>Your order reference is <b id="ref"></b>. We will confirm your <span id="pay-name"></span> payment by phone or email.</p><p class="note">We have emailed your order details to <b id="ref-email"></b>.</p><button class="btn btn-primary" type="button" style="margin-top:1rem">Back to home</button></div></div>
+  <h2 id="mt">@c('cart.done_title')</h2><p>{!! \App\Support\SiteContent::orderDone() !!}</p><p class="note">We have emailed your order details to <b id="ref-email"></b>.</p><button class="btn btn-primary" type="button" style="margin-top:1rem">Back to home</button></div></div>
 @endsection

@@ -21,6 +21,11 @@ Route::get('/about', [SiteController::class, 'about'])->name('site.about');
 Route::get('/contact', [SiteController::class, 'contact'])->name('site.contact');
 Route::get('/cart', [SiteController::class, 'cart'])->name('site.cart');
 
+// Contact form and newsletter sign-up (module 9)
+Route::post('/contact', [\App\Http\Controllers\ContactController::class, 'store'])->middleware('throttle:6,1')->name('contact.store');
+Route::post('/newsletter', [\App\Http\Controllers\NewsletterController::class, 'subscribe'])->middleware('throttle:10,1')->name('newsletter.subscribe');
+Route::get('/newsletter/unsubscribe/{token}', [\App\Http\Controllers\NewsletterController::class, 'unsubscribe'])->where('token', '[A-Za-z0-9]{40}')->name('newsletter.unsubscribe');
+
 /*
 |--------------------------------------------------------------------------
 | Cart and checkout (module 5): JSON endpoints used by the shop pages

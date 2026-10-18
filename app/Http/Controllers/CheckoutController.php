@@ -156,7 +156,7 @@ class CheckoutController extends Controller
             report($e);
         }
 
-        if ($staff = config('wakata.order_notify')) {
+        foreach (\App\Support\SiteSettings::alertRecipients('orders') as $staff) {
             try {
                 Mail::to($staff)->send(new OrderReceivedStaffMail($order));
             } catch (\Throwable $e) {

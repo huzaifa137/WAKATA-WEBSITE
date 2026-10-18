@@ -1,6 +1,7 @@
 @extends('layouts.site')
 
-@section('title', 'WAKATA Stationers | Books, past papers and mock examinations')
+@section('title', \App\Support\SiteContent::seo('home', 'title'))
+@section('description', \App\Support\SiteContent::seo('home', 'desc'))
 @section('page', 'home')
 
 @section('content')
@@ -28,11 +29,10 @@
       </div>
       <div class="wrap">
         <div>
-          <h1>Quality assessment, priced for every school.</h1>
-          <p class="lead">Mock examinations, past papers, practical workbooks and holiday packages, written and marked
-            by teachers of the Wakiso Kampala Teachers' Association.</p>
-          <div class="cta"><a class="btn btn-hl" href="{{ route('site.books') }}">Shop books</a><a class="btn btn-ghost-w"
-              href="{{ route('site.papers') }}">Find a past paper</a></div>
+          <h1>@c('home.title')</h1>
+          <p class="lead">@c('home.lead')</p>
+          <div class="cta"><a class="btn btn-hl" href="{{ \App\Support\SiteContent::link('home.btn1_link') }}">@c('home.btn1')</a><a class="btn btn-ghost-w"
+              href="{{ \App\Support\SiteContent::link('home.btn2_link') }}">@c('home.btn2')</a></div>
           <ul class="facts">
             <li><svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
                 <polyline points="20 6 9 17 4 12" />
@@ -53,7 +53,7 @@
           <span class="tick"><svg viewBox="0 0 24 24">
               <polyline points="4 13 10 19 21 6" />
             </svg></span>
-          <span class="tag t1">Printed or PDF</span>
+          <span class="tag t1">@c('home.tag')</span>
         </div>
       </div>
     </section>
@@ -61,10 +61,10 @@
     <section class="stats" aria-label="WAKATA at a glance">
       <div class="wrap">
         <div class="stats-card">
-          <div class="stat"><b data-count="books">23</b><span>Books and workbooks</span></div>
-          <div class="stat"><b data-count="papers">129</b><span>Past papers</span></div>
-          <div class="stat"><b data-count="sets">6</b><span>Complete exam sets</span></div>
-          <div class="stat"><b data-count="3">3</b><span>Levels covered: PLE, UCE, UACE</span></div>
+          <div class="stat"><b data-count="books">23</b><span>@c('home.stat1')</span></div>
+          <div class="stat"><b data-count="papers">129</b><span>@c('home.stat2')</span></div>
+          <div class="stat"><b data-count="sets">6</b><span>@c('home.stat3')</span></div>
+          <div class="stat"><b data-count="3">3</b><span>@c('home.stat4')</span></div>
         </div>
       </div>
     </section>
@@ -73,8 +73,8 @@
       <div class="wrap">
         <div class="sec-head">
           <div>
-            <h2>Textbooks and practical workbooks</h2>
-            <p>Biology, Chemistry, Physics, Agriculture and more, with new curriculum editions.</p>
+            <h2>@c('home.books_title')</h2>
+            <p>@c('home.books_sub')</p>
           </div><a class="link-more" href="{{ route('site.books') }}">See all books <svg class="ico" viewBox="0 0 24 24"
               aria-hidden="true">
               <line x1="5" y1="12" x2="19" y2="12" />
@@ -90,8 +90,8 @@
       <div class="wrap">
         <div class="sec-head">
           <div>
-            <h2>Find the exact paper you need</h2>
-            <p>Choose a level, subject and year. Buy a single printed paper, or download a PDF in minutes.</p>
+            <h2>@c('home.papers_title')</h2>
+            <p>@c('home.papers_sub')</p>
           </div>
         </div>
         <form class="finder" action="{{ route('site.papers') }}" method="get">
@@ -126,8 +126,8 @@
       <div class="wrap">
         <div class="sec-head">
           <div>
-            <h2>Start with your level</h2>
-            <p>Everything in the shop is grouped by the examination your learners are preparing for.</p>
+            <h2>@c('home.levels_title')</h2>
+            <p>@c('home.levels_sub')</p>
           </div>
         </div>
         <div class="levels">
@@ -157,9 +157,8 @@
       <div class="wrap">
         <div class="sec-head">
           <div>
-            <h2>Holiday packages</h2>
-            <p>A ready-made bundle of workbooks, tests and mock papers, so learners keep working while school is out.
-            </p>
+            <h2>@c('home.packages_title')</h2>
+            <p>@c('home.packages_sub')</p>
           </div><a class="link-more" href="{{ route('site.packages') }}">All packages <svg class="ico" viewBox="0 0 24 24"
               aria-hidden="true">
               <line x1="5" y1="12" x2="19" y2="12" />
@@ -170,70 +169,29 @@
       </div>
     </section>
 
+    @if ($testimonials->isNotEmpty())
     <section class="sec sec-white">
       <div class="wrap">
         <div class="sec-head">
           <div>
-            <h2>What teachers say</h2>
-            <p>Schools use WAKATA papers and workbooks every term.</p>
+            <h2>@c('home.testimonials_title')</h2>
+            <p>@c('home.testimonials_sub')</p>
           </div><button class="mq-toggle" id="mq-toggle" type="button" aria-pressed="false" aria-controls="testimonials"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><line x1="9" y1="5" x2="9" y2="19"/><line x1="15" y1="5" x2="15" y2="19"/></svg><span>Pause</span></button>
         </div>
       </div>
         <div class="mq" id="testimonials" role="region" aria-label="Teacher testimonials, scrolling automatically">
           <div class="mq-track">
             <div class="mq-group">
+            @foreach ($testimonials as $t)
             <figure class="quote">
-              <div class="stars" aria-label="5 out of 5">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-              <blockquote>The practical workbooks match what the learners meet in the lab. Our Senior 4 candidates walked into the exam knowing what to expect.</blockquote>
-              <figcaption><span class="av" aria-hidden="true">HS</span><span><b>Head of Science</b>Secondary school, Wakiso</span></figcaption>
+              <div class="stars" aria-label="{{ $t->stars }} out of 5">{!! str_repeat('&#9733;', $t->stars) . str_repeat('&#9734;', 5 - $t->stars) !!}</div>
+              <blockquote>{{ $t->quote }}</blockquote>
+              <figcaption><span class="av" aria-hidden="true">{{ $t->initials }}</span><span><b>{{ $t->role }}</b>{{ $t->place }}</span></figcaption>
             </figure>
-            <figure class="quote">
-              <div class="stars" aria-label="5 out of 5">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-              <blockquote>We order the mock series for the whole Primary Seven class. The marking guides save our teachers a full weekend.</blockquote>
-              <figcaption><span class="av" aria-hidden="true">DH</span><span><b>Deputy Head Teacher</b>Primary school, Kampala</span></figcaption>
-            </figure>
-            <figure class="quote">
-              <div class="stars" aria-label="5 out of 5">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-              <blockquote>Buying a past paper as a PDF and paying with mobile money took minutes. Printing it for revision day was easy.</blockquote>
-              <figcaption><span class="av" aria-hidden="true">BT</span><span><b>Biology teacher</b>Secondary school, Entebbe</span></figcaption>
-            </figure>
-            <figure class="quote">
-              <div class="stars" aria-label="5 out of 5">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-              <blockquote>The full exam sets give us one clean series to run across every stream. Candidates sit the same paper under the same conditions.</blockquote>
-              <figcaption><span class="av" aria-hidden="true">DS</span><span><b>Director of Studies</b>Secondary school, Mukono</span></figcaption>
-            </figure>
-            <figure class="quote">
-              <div class="stars" aria-label="5 out of 5">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-              <blockquote>The five-year paper bundle is the fastest way I have found to drill past questions. My Senior 4 class improved noticeably.</blockquote>
-              <figcaption><span class="av" aria-hidden="true">MT</span><span><b>Mathematics teacher</b>Secondary school, Kira</span></figcaption>
-            </figure>
-            <figure class="quote">
-              <div class="stars" aria-label="5 out of 5">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-              <blockquote>Prices that a small school can afford, and papers that look like the real examination. Parents notice the difference.</blockquote>
-              <figcaption><span class="av" aria-hidden="true">HT</span><span><b>Head Teacher</b>Primary school, Nansana</span></figcaption>
-            </figure>
-            <figure class="quote">
-              <div class="stars" aria-label="5 out of 5">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-              <blockquote>Clear diagrams, sensible mark allocations and answers I can trust. I now recommend the practical workbooks to colleagues.</blockquote>
-              <figcaption><span class="av" aria-hidden="true">CT</span><span><b>Chemistry teacher</b>Secondary school, Makindye</span></figcaption>
-            </figure>
-            <figure class="quote">
-              <div class="stars" aria-label="5 out of 5">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-              <blockquote>The holiday package kept my learners practising while school was closed. They came back sharper and more confident.</blockquote>
-              <figcaption><span class="av" aria-hidden="true">PT</span><span><b>Primary Seven class teacher</b>Primary school, Kawempe</span></figcaption>
-            </figure>
-            <figure class="quote">
-              <div class="stars" aria-label="5 out of 5">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-              <blockquote>Fast delivery and well-printed copies. The sets arrived labelled by subject, so distributing them took no time at all.</blockquote>
-              <figcaption><span class="av" aria-hidden="true">LT</span><span><b>Literature teacher</b>Secondary school, Rubaga</span></figcaption>
-            </figure>
-            <figure class="quote">
-              <div class="stars" aria-label="5 out of 5">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-              <blockquote>Ordering for the whole school is simple. We send the list, get a quotation the same day, and pay with mobile money.</blockquote>
-              <figcaption><span class="av" aria-hidden="true">SB</span><span><b>School bursar</b>Secondary school, Wakiso</span></figcaption>
-            </figure>
+            @endforeach
             </div>
           </div>
         </div>
       </section>
+    @endif
   @endsection

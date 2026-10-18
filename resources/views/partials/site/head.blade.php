@@ -10,3 +10,4 @@
 <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
 @include('partials.site.wk-globals')
 @stack('head')
+@if ($ga = \App\Support\SiteSettings::get('ga4'))<script async src="https://www.googletagmanager.com/gtag/js?id={{ $ga }}"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config',@json($ga));</script>@endif

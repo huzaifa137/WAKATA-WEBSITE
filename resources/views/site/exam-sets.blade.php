@@ -1,6 +1,7 @@
 @extends('layouts.site')
 
-@section('title', 'Exam sets | WAKATA Stationers')
+@section('title', \App\Support\SiteContent::seo('sets', 'title'))
+@section('description', \App\Support\SiteContent::seo('sets', 'desc'))
 @section('page', 'sets')
 
 @section('content')

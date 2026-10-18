@@ -25,7 +25,7 @@
 
   /* Placeholder number: replace with WAKATA's real WhatsApp line */
   const wa = document.createElement('a');
-  wa.className = 'fab wa'; wa.href = 'https://wa.me/' + WK.contact.wa + '?text=Hello%20WAKATA%2C%20I%20need%20help%20with%20an%20order.';
+  wa.className = 'fab wa'; wa.href = 'https://wa.me/' + WK.contact.wa + '?text=' + encodeURIComponent(WK.contact.waText || 'Hello WAKATA, I need help with an order.');
   wa.target = '_blank'; wa.rel = 'noopener'; wa.setAttribute('aria-label', 'Chat with WAKATA on WhatsApp');
   wa.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20.5l1.7-5.2A8.5 8.5 0 1 1 21 11.5z"/><path d="M9 8.8c.3 2.6 2.6 5 5.4 5.7l1.3-1.3-2-1-1 .7a4.6 4.6 0 0 1-1.9-1.9l.7-1-1-2z"/></svg><span>Chat with us</span>';
   document.body.appendChild(wa);

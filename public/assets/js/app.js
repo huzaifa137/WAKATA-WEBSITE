@@ -341,6 +341,27 @@
     const pay = $$('input[name=pay]', form); if (pay.length && !pay.some(r => r.checked)) { ok = false; toast('Choose a payment method to continue.'); }
     return ok;
   }
+  /* Forms that really send: the Contact page form and the newsletter sign-up post to Laravel and show its answer. */
+  function postForms() {
+    $$('form[data-post]').forEach(f => f.addEventListener('submit', async e => {
+      e.preventDefault();
+      if (f.id !== 'newsletter' && !validate(f)) return;
+      const btn = $('[type=submit]', f); if (btn) btn.disabled = true;
+      const body = Object.fromEntries(new FormData(f)); if (f.dataset.source) body.source = f.dataset.source;
+      try {
+        const res = await fetch(f.dataset.post, { method: 'POST', credentials: 'same-origin', headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': WK.csrf }, body: JSON.stringify(body) });
+        const d = await res.json().catch(() => ({}));
+        if (res.ok && d.ok !== false) {
+          f.reset(); toast(esc(d.message || f.dataset.done || 'Thank you.'));
+          const r = $('[data-result]', f.parentElement); if (r) { r.hidden = false; r.textContent = f.dataset.done; }
+        } else {
+          const first = d.errors ? Object.values(d.errors)[0][0] : (res.status === 429 ? 'Too many tries. Please wait a minute and try again.' : 'We could not send that. Please try again.');
+          toast(esc(first), 'err');
+        }
+      } catch (err) { toast('We could not send that. Check your connection and try again.', 'err'); }
+      if (btn) btn.disabled = false;
+    }));
+  }
   function demoForms() {
     $$('form[data-demo]').forEach(f => f.addEventListener('submit', e => {
       e.preventDefault();
@@ -382,8 +403,7 @@
   document.addEventListener('change', e => {
     if (e.target.matches('input[data-fmt]')) { const p = e.target.closest('.pp').querySelector('[data-price]'); p.textContent = D.money(p.dataset[e.target.value]); }
   });
-  const nl = $('#newsletter'); if (nl) nl.addEventListener('submit', e => { e.preventDefault(); if (nl.email.value) { nl.reset(); toast('Thank you. You are on the list for new papers and offers.'); } });
 
-  badge(); demoForms();
+  badge(); demoForms(); postForms();
   ({ home, books, detail, papers, cartPage, sets: () => tabbed(D.sets, setCard), packages: () => tabbed(D.packages, packCard) }[page] || function () { })();
 })();

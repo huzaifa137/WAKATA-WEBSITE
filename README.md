@@ -27,6 +27,7 @@ a throwaway password and production refuses to seed the admin.
 | Admin console | `routes/admin.php`, `resources/views/admin` |
 | Catalogue (books, papers, sets, packages, levels, subjects) | `app/Models`, `app/Support/Catalogue.php`, `database/seeders/data/catalogue.json` |
 | Admin catalogue (module 7) | `app/Http/Controllers/Admin/*Controller.php`, `app/Support/AdminCatalogue.php`, `Inventory.php`, `Media.php`, `public/assets/admin/js/pages.js` |
+| Engagement and site content (module 9) | `app/Http/Controllers/ContactController.php`, `NewsletterController.php`, `app/Http/Controllers/Admin/{Message,Subscriber,Testimonial,Faq,Content,Settings}Controller.php`, `app/Support/SiteContent.php`, `SiteSettings.php`, `AdminEngagement.php` |
 | Cart and checkout | `app/Support/Cart.php`, `CartController`, `CheckoutController`, `Order` and `OrderItem` models, `config/wakata.php` (delivery fees, payment methods) |
 
 ## Catalogue
@@ -72,6 +73,27 @@ super admin, manager or editor (`Admin::canManageCatalogue()`, middleware `admin
   guides" and "allow swapping a book" are saved (in each table's `options` column) but only take effect when orders,
   payments and deliveries are built.
 - **Sales numbers** on these pages count paid orders that were not cancelled or refunded.
+
+## Engagement and site content (module 9)
+
+- **Contact form and newsletter.** The Contact page form saves a message (ref `M-1001` ...) and the "Get new papers first" form saves a
+  subscriber. Both have a hidden field for robots and are rate limited. Every newsletter email carries that person's own unsubscribe link.
+- **Messages.** One inbox for the Contact page and for questions customers ask from their account (`T-1001` ...). Staff reply by email
+  (a reply is only marked as sent when the email went out), archive, mark unread, delete contact messages, and send a quotation: the
+  server totals the lines and emails it. Customer questions are answered in the same box and appear in the customer's account.
+- **Subscribers and newsletters.** Add, remove, unsubscribe, bulk actions, and send to all, schools only or teachers only (by the type of
+  the matching customer account). One send reaches up to 1,000 people in a single request; "Send test to me" goes only to the signed-in admin.
+- **Testimonials and Questions.** The home page row and the Contact / Holiday packages questions come from the database. The ten quotes and
+  ten questions that were typed into the pages were copied in by the migration, so the site looks the same after the upgrade. A page whose
+  testimonials are all hidden leaves that section out. Questions can be dragged into a new order.
+- **Site content.** Every editable text has a built-in default equal to the old wording; saving a blank (or the default) goes back to it.
+  Contact details also feed `config('wakata.*')`, so the top strip, WhatsApp button and emails follow them. Page titles and descriptions are
+  editable. Delivery and payment choices are not edited here: they live on the Deliveries and Payments pages.
+- **Settings.** Public email (the same as the Contact email), monthly sales goal (used by the dashboard in the next module), downloads allowed
+  per paid PDF, team alert recipients and switches (new order, new message), Google Analytics ID, and CSV exports (orders, customers,
+  subscribers, books; super admin or manager only). Invoice wording, security and backups are not part of this module.
+- **Roles.** Messages and subscribers: super admin, manager, support. Website content, testimonials, questions: super admin, manager, editor.
+  Settings: super admin, manager. Everyone signed in can look.
 
 ## Tests
 

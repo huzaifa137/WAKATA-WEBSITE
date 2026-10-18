@@ -195,6 +195,12 @@ window.AD = (function () {
     };
   })();
 
+  /* ---------- Module 9: the engagement pages get the REAL messages and subscribers from Laravel (WK.eng) ---------- */
+  if (WK.eng) {
+    messages.length = 0; WK.eng.messages.forEach(m => messages.push(m));
+    subscribers.length = 0; WK.eng.subscribers.forEach(x => subscribers.push(x));
+  }
+
   return { WK, rnd, NOW, DAY, orders, customers, custById, messages, subscribers, team, activity, notifications, ORDER_STATUS, PAY_STATUS, PAY_METHODS, DELIVERY, LVL, LVL_LABEL, TYPE_LABEL,
     counted, within, series, byCategory, byLevel, bySubject, topProducts, byMethod, byStatus, byDelivery, byWeekday, sum, itemRev,
     fmtDate, fmtTime, rel, img, initials, esc, thumbOf, thumbById, genThumb, recOf, money, mTopics, sales };

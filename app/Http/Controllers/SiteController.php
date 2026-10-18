@@ -10,7 +10,7 @@ class SiteController extends Controller
 {
     public function home()
     {
-        return view('site.home');
+        return view('site.home', ['testimonials' => \App\Models\Testimonial::shown()->get()]);
     }
 
     public function books()
@@ -46,7 +46,7 @@ class SiteController extends Controller
 
     public function packages()
     {
-        return view('site.holiday-packages');
+        return view('site.holiday-packages', ['faqs' => \App\Models\Faq::for('holiday')->get()]);
     }
 
     public function about()
@@ -56,7 +56,7 @@ class SiteController extends Controller
 
     public function contact()
     {
-        return view('site.contact');
+        return view('site.contact', ['faqs' => \App\Models\Faq::for('contact')->get()]);
     }
 
     public function cart()

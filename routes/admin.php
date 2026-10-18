@@ -2,16 +2,22 @@
 
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\BookController;
+use App\Http\Controllers\Admin\ContentController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DeliveryController;
 use App\Http\Controllers\Admin\ExamSetController;
+use App\Http\Controllers\Admin\FaqController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\MediaController;
+use App\Http\Controllers\Admin\MessageController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PackageController;
 use App\Http\Controllers\Admin\PaperController;
 use App\Http\Controllers\Admin\PaymentController;
+use App\Http\Controllers\Admin\SettingsController;
+use App\Http\Controllers\Admin\SubscriberController;
 use App\Http\Controllers\Admin\TaxonomyController;
+use App\Http\Controllers\Admin\TestimonialController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -112,6 +118,54 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('/inventory/alert', [InventoryController::class, 'alert'])->name('inventory.alert');
         });
 
+        // ---- Engagement and site content (module 9): looking ----
+        Route::get('/messages', [MessageController::class, 'index'])->name('messages');
+        Route::get('/subscribers', [SubscriberController::class, 'index'])->name('subscribers');
+        Route::get('/testimonials', [TestimonialController::class, 'index'])->name('testimonials');
+        Route::get('/faqs', [FaqController::class, 'index'])->name('faqs');
+        Route::get('/content', [ContentController::class, 'index'])->name('content');
+        Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
+
+        // ---- Messages and subscribers: super admin, manager or support ----
+        Route::middleware('admin.can:inbox')->group(function () {
+            Route::post('/messages/{ref}/reply', [MessageController::class, 'reply'])->where('ref', '[MT]-[0-9]+')->name('messages.reply');
+            Route::post('/messages/{ref}/status', [MessageController::class, 'status'])->where('ref', '[MT]-[0-9]+')->name('messages.status');
+            Route::post('/messages/{ref}/read', [MessageController::class, 'read'])->where('ref', '[MT]-[0-9]+')->name('messages.read');
+            Route::post('/messages/{ref}/quote', [MessageController::class, 'quote'])->where('ref', '[MT]-[0-9]+')->name('messages.quote');
+            Route::delete('/messages/{ref}', [MessageController::class, 'destroy'])->where('ref', '[MT]-[0-9]+')->name('messages.destroy');
+
+            Route::post('/subscribers', [SubscriberController::class, 'store'])->name('subscribers.store');
+            Route::post('/subscribers/bulk', [SubscriberController::class, 'bulk'])->name('subscribers.bulk');
+            Route::post('/subscribers/send', [SubscriberController::class, 'send'])->name('subscribers.send');
+            Route::post('/subscribers/{subscriber}/status', [SubscriberController::class, 'status'])->whereNumber('subscriber')->name('subscribers.status');
+            Route::delete('/subscribers/{subscriber}', [SubscriberController::class, 'destroy'])->whereNumber('subscriber')->name('subscribers.destroy');
+        });
+
+        // ---- Website words, testimonials, questions: super admin, manager or editor ----
+        Route::middleware('admin.can:content')->group(function () {
+            Route::post('/content', [ContentController::class, 'save'])->name('content.save');
+
+            Route::post('/testimonials', [TestimonialController::class, 'store'])->name('testimonials.store');
+            Route::put('/testimonials/{testimonial}', [TestimonialController::class, 'update'])->whereNumber('testimonial')->name('testimonials.update');
+            Route::post('/testimonials/{testimonial}/toggle', [TestimonialController::class, 'toggle'])->whereNumber('testimonial')->name('testimonials.toggle');
+            Route::delete('/testimonials/{testimonial}', [TestimonialController::class, 'destroy'])->whereNumber('testimonial')->name('testimonials.destroy');
+
+            Route::post('/faqs', [FaqController::class, 'store'])->name('faqs.store');
+            Route::post('/faqs/reorder', [FaqController::class, 'reorder'])->name('faqs.reorder');
+            Route::put('/faqs/{faq}', [FaqController::class, 'update'])->whereNumber('faq')->name('faqs.update');
+            Route::post('/faqs/{faq}/toggle', [FaqController::class, 'toggle'])->whereNumber('faq')->name('faqs.toggle');
+            Route::delete('/faqs/{faq}', [FaqController::class, 'destroy'])->whereNumber('faq')->name('faqs.destroy');
+        });
+
+        // ---- Settings: super admin or manager ----
+        Route::middleware('admin.can:settings')->group(function () {
+            Route::get('/settings/export/{what}', [SettingsController::class, 'export'])->where('what', 'orders|customers|subscribers|books')->name('settings.export');
+            Route::post('/settings/general', [SettingsController::class, 'general'])->name('settings.general');
+            Route::post('/settings/downloads', [SettingsController::class, 'downloads'])->name('settings.downloads');
+            Route::post('/settings/notifications', [SettingsController::class, 'notifications'])->name('settings.notifications');
+            Route::post('/settings/integrations', [SettingsController::class, 'integrations'])->name('settings.integrations');
+        });
+
         // ---- Sales (module 8): looking ----
         Route::get('/orders', [OrderController::class, 'index'])->name('orders');
         Route::get('/order', [OrderController::class, 'show'])->name('order');
@@ -142,15 +196,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::put('/deliveries/options', [DeliveryController::class, 'options'])->name('deliveries.options');
         });
 
-        Route::view('/messages', 'admin.messages')->name('messages');
-        Route::view('/subscribers', 'admin.subscribers')->name('subscribers');
-        Route::view('/testimonials', 'admin.testimonials')->name('testimonials');
-        Route::view('/faqs', 'admin.faqs')->name('faqs');
-        Route::view('/content', 'admin.content')->name('content');
         Route::view('/reports', 'admin.reports')->name('reports');
         Route::view('/team', 'admin.team')->name('team');
         Route::view('/activity', 'admin.activity')->name('activity');
-        Route::view('/settings', 'admin.settings')->name('settings');
         Route::view('/profile', 'admin.profile')->name('profile');
     });
 

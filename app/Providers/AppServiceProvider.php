@@ -6,6 +6,8 @@ use App\Support\Cart;
 use App\Support\CustomerSession;
 use App\Support\Portal;
 use App\Support\ShopSettings;
+use App\Support\SiteContent;
+use App\Support\SiteSettings;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -27,6 +29,11 @@ class AppServiceProvider extends ServiceProvider
     {
         // Delivery names and fees, and the payment methods switched on or off by staff (module 8)
         ShopSettings::apply();
+        SiteContent::apply();
+        SiteSettings::apply();
+
+        // @c('home.title') prints a text staff can edit under Site content (escaped)
+        Blade::directive('c', fn ($expression) => "<?php echo e(\\App\\Support\\SiteContent::get({$expression})); ?>");
 
         // @icon('grid') / @icon('external', 'sb-ext') render the inline SVGs from config/icons.php
         Blade::directive('icon', fn (string $expression) => "<?php echo \\App\\Support\\Icon::svg({$expression}); ?>");

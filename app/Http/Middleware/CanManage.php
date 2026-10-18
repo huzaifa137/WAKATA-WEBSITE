@@ -19,13 +19,20 @@ class CanManage
         $allowed = $admin && match ($area) {
             'sales'    => $admin->canManageSales(),
             'payments' => $admin->canManagePayments(),
+            'inbox'    => $admin->canManageInbox(),
+            'content'  => $admin->canManageContent(),
+            'settings' => $admin->canManageSettings(),
             default    => false,
         };
 
         if (! $allowed) {
-            $message = $area === 'payments'
-                ? 'Only a super admin or manager can handle payments.'
-                : 'Your role can look at sales but not change them.';
+            $message = match ($area) {
+                'payments' => 'Only a super admin or manager can handle payments.',
+                'inbox'    => 'Your role can read messages and subscribers but not answer or change them.',
+                'content'  => 'Your role can look at the website content but not change it.',
+                'settings' => 'Only a super admin or manager can change settings.',
+                default    => 'Your role can look at sales but not change them.',
+            };
 
             return $request->expectsJson()
                 ? response()->json(['message' => $message], 403)

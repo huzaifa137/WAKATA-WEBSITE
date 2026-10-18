@@ -48,6 +48,24 @@ class Admin extends Model
         return in_array($this->role, ['super_admin', 'manager'], true);
     }
 
+    /** Roles that answer messages, support questions and subscribers. */
+    public function canManageInbox(): bool
+    {
+        return in_array($this->role, ['super_admin', 'manager', 'support'], true);
+    }
+
+    /** Roles that edit the words on the website, the testimonials and the questions and answers. */
+    public function canManageContent(): bool
+    {
+        return in_array($this->role, ['super_admin', 'manager', 'editor'], true);
+    }
+
+    /** Roles that change shop settings (alerts, download limit, goal, analytics). */
+    public function canManageSettings(): bool
+    {
+        return in_array($this->role, ['super_admin', 'manager'], true);
+    }
+
     public function getRoleLabelAttribute(): string
     {
         return self::ROLES[$this->role] ?? ucfirst(str_replace('_', ' ', (string) $this->role));
