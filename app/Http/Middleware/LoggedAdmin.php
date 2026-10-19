@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Admin;
+use App\Support\Activity;
 use App\Support\RememberLogin;
 use Closure;
 use Illuminate\Http\Request;
@@ -40,6 +41,9 @@ class LoggedAdmin
         View::share('authAdmin', $admin);
 
         $response = $next($request);
+
+        // Module 10: every change a team member makes is written to the activity log
+        Activity::record($request, $response);
 
         // Keep signed-in pages out of the browser cache so Back does not show them after sign-out.
         $response->headers->set('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate');

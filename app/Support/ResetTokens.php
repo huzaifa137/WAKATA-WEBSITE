@@ -11,13 +11,15 @@ class ResetTokens
 {
     private const TTL_MINUTES = 60;
 
-    public static function create(string $guard, string $email): string
+    /** @param int $minutes how long the link works (a team invitation lasts days, a reset link an hour) */
+    public static function create(string $guard, string $email, int $minutes = self::TTL_MINUTES): string
     {
         $token = Str::random(64);
 
+        // valid() counts TTL_MINUTES from created_at, so a longer life is a created_at set that far into the future
         DB::table('wk_password_resets')->updateOrInsert(
             ['guard' => $guard, 'email' => $email],
-            ['token' => hash('sha256', $token), 'created_at' => now()]
+            ['token' => hash('sha256', $token), 'created_at' => now()->addMinutes(max(0, $minutes - self::TTL_MINUTES))]
         );
 
         return $token;

@@ -16,7 +16,7 @@ class Admin extends Model
         'support'     => 'Support',
     ];
 
-    protected $fillable = ['name', 'email', 'phone', 'password', 'role', 'status', 'two_factor_enabled'];
+    protected $fillable = ['name', 'email', 'phone', 'password', 'role', 'status', 'two_factor_enabled', 'invited_at', 'invited_by'];
 
     protected $hidden = ['password', 'remember_token', 'otp_code'];
 
@@ -27,6 +27,7 @@ class Admin extends Model
             'two_factor_enabled' => 'boolean',
             'otp_expires_at'     => 'datetime',
             'last_login_at'      => 'datetime',
+            'invited_at'         => 'datetime',
         ];
     }
 
@@ -64,6 +65,43 @@ class Admin extends Model
     public function canManageSettings(): bool
     {
         return in_array($this->role, ['super_admin', 'manager'], true);
+    }
+
+    /** Roles that download reports and data exports, and schedule the emailed report. Looking at reports is open to everyone. */
+    public function canExportReports(): bool
+    {
+        return in_array($this->role, ['super_admin', 'manager'], true);
+    }
+
+    /** Only a super admin invites, changes or removes team members. */
+    public function canManageTeam(): bool
+    {
+        return $this->role === 'super_admin';
+    }
+
+    /**
+     * What each role can change, worked out from the can...() methods above so the table on Team and roles can never
+     * disagree with what the console really allows. Looking is open to every signed-in team member.
+     *
+     * @return array<int, array{area:string, roles:array<string,bool>}>
+     */
+    public static function permissionMatrix(): array
+    {
+        $areas = [
+            'Books, past papers, exam sets, packages, media and stock' => 'canManageCatalogue',
+            'Orders, deliveries and customers'                         => 'canManageSales',
+            'Confirming and refunding payments'                        => 'canManagePayments',
+            'Messages, support questions and subscribers'              => 'canManageInbox',
+            'Site content, testimonials and questions'                 => 'canManageContent',
+            'Downloading reports and data exports'                     => 'canExportReports',
+            'Settings'                                                 => 'canManageSettings',
+            'Team and roles'                                           => 'canManageTeam',
+        ];
+
+        return collect($areas)->map(fn (string $method, string $area) => [
+            'area'  => $area,
+            'roles' => collect(array_keys(self::ROLES))->mapWithKeys(fn (string $role) => [$role => (new self(['role' => $role]))->{$method}()])->all(),
+        ])->values()->all();
     }
 
     public function getRoleLabelAttribute(): string

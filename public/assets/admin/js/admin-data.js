@@ -201,6 +201,13 @@ window.AD = (function () {
     subscribers.length = 0; WK.eng.subscribers.forEach(x => subscribers.push(x));
   }
 
+  /* ---------- Module 10: the shell, the team and the activity log come from Laravel ----------
+     WK.shell (every signed-in page): the notification bell. WK.ins on the Team page: the real members. WK.ins on the Activity log
+     page: the real log lines. The dashboard reads its own part of WK.ins (attention list, goal, latest activity) in pages.js. */
+  if (WK.shell) { notifications.length = 0; WK.shell.notifications.forEach(n => notifications.push(n)); }
+  if (WK.ins && WK.ins.members) { team.length = 0; WK.ins.members.forEach(m => team.push(m)); }
+  if (WK.ins && WK.ins.rows) { activity.length = 0; WK.ins.rows.forEach(a => activity.push(a)); }
+
   return { WK, rnd, NOW, DAY, orders, customers, custById, messages, subscribers, team, activity, notifications, ORDER_STATUS, PAY_STATUS, PAY_METHODS, DELIVERY, LVL, LVL_LABEL, TYPE_LABEL,
     counted, within, series, byCategory, byLevel, bySubject, topProducts, byMethod, byStatus, byDelivery, byWeekday, sum, itemRev,
     fmtDate, fmtTime, rel, img, initials, esc, thumbOf, thumbById, genThumb, recOf, money, mTopics, sales };

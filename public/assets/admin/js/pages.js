@@ -36,7 +36,7 @@
       const newC = AD.customers.filter(c => c.joined >= NOW - days * DAY).length, pNew = AD.customers.filter(c => c.joined >= NOW - 2 * days * DAY && c.joined < NOW - days * DAY).length;
       const pdfU = units(cur, i => i.fmt === 'pdf'), pdfP = units(prev, i => i.fmt === 'pdf'), prU = units(cur, i => i.fmt !== 'pdf' && (i.type === 'book' || i.type === 'paper')), prP = units(prev, i => i.fmt !== 'pdf' && (i.type === 'book' || i.type === 'paper'));
       $('#kpis').innerHTML = kpi('wallet', '', 'Revenue', M(rev), delta(rev, prevRev), 1, 'sp1') + kpi('cart', 'y', 'Orders', cur.length, delta(cur.length, prev.length), 1, 'sp2') + kpi('trend', 'g', 'Average order value', M(Math.round(aov)), delta(aov, pAov), 1, 'sp3') + kpi('users', 'p', 'New customers', newC, delta(newC, pNew), 1, 'sp4') + kpi('book', '', 'Printed copies sold', prU.toLocaleString(), delta(prU, prP), 1, 'sp5') + kpi('download', 'r', 'PDF downloads sold', pdfU.toLocaleString(), delta(pdfU, pdfP), 1, 'sp6');
-      C.spark('#sp1', b.map(x => x.rev), 'var(--c1)'); C.spark('#sp2', b.map(x => x.orders), 'var(--c7)'); C.spark('#sp3', b.map(x => x.orders ? x.rev / x.orders : 0), 'var(--c4)'); C.spark('#sp4', b.map((x, i) => (i % 3) + 1 + (i > b.length / 2 ? 1 : 0)), 'var(--c6)'); C.spark('#sp5', b.map(x => x.print), 'var(--c1)'); C.spark('#sp6', b.map(x => x.pdf), 'var(--c3)');
+      C.spark('#sp1', b.map(x => x.rev), 'var(--c1)'); C.spark('#sp2', b.map(x => x.orders), 'var(--c7)'); C.spark('#sp3', b.map(x => x.orders ? x.rev / x.orders : 0), 'var(--c4)'); C.spark('#sp4', b.map(x => AD.customers.filter(c => c.joined >= x.s && c.joined < x.e).length), 'var(--c6)'); C.spark('#sp5', b.map(x => x.print), 'var(--c1)'); C.spark('#sp6', b.map(x => x.pdf), 'var(--c3)');
       C.line('#chRevenue', { labels: b.map(x => x.label), series: [{ name: 'Printed and delivery', data: b.map(x => x.print), color: 'var(--c1)' }, { name: 'PDF downloads', data: b.map(x => x.pdf), color: 'var(--c3)' }], tipFmt: M, height: 290 });
       const cat = AD.byCategory(cur); C.donut('#chCategory', { items: [{ name: 'Books', value: cat.book, color: 'var(--c1)' }, { name: 'Past papers', value: cat.paper, color: 'var(--c3)' }, { name: 'Exam sets', value: cat.set, color: 'var(--c2)' }, { name: 'Holiday packages', value: cat.pack, color: 'var(--c4)' }], centerLabel: 'Product sales', tipFmt: M });
       const st = AD.byStatus(); C.bar('#chStatus', { labels: Object.keys(OS).map(k => OS[k].label), series: [{ name: 'Orders', data: Object.keys(OS).map(k => st[k]), color: 'var(--c1)' }], horizontal: true, height: 270 });
@@ -49,19 +49,22 @@
       $('#topList').innerHTML = tp.map((p, i) => `<li><span class="rk">${i + 1}</span>${AD.thumbById(p.type, p.id)}<div class="nm"><b>${esc(p.title)}</b><small>${AD.TYPE_LABEL[p.type]}${p.fmt ? ' · ' + (p.fmt === 'pdf' ? 'PDF' : 'Printed') : ''} · ${p.units.toLocaleString()} sold</small><div class="progress" style="margin-top:.35rem;height:5px"><i style="width:${p.rev / mx * 100}%"></i></div></div><b class="nowrap sm">${M(p.rev)}</b></li>`).join('');
     }
     draw();
-    $('#rangeSeg').addEventListener('seg', e => { days = +e.detail; draw(); toast('Showing the last ' + (days === 365 ? '12 months' : days + ' days')); });
+    $('#rangeSeg').addEventListener('seg', e => { days = +e.detail; draw(); const de = $('#dashExport'); if (de) de.href = de.href.replace(/days=\d+/, 'days=' + days); toast('Showing the last ' + (days === 365 ? '12 months' : days + ' days')); });
     /* monthly goal */
-    const d0 = new Date(), mStart = +new Date(d0.getFullYear(), d0.getMonth(), 1), goal = 40000000, monthRev = AD.sum(AD.orders.filter(o => AD.counted(o) && o.ts >= mStart), o => o.total);
+    const d0 = new Date(), mStart = +new Date(d0.getFullYear(), d0.getMonth(), 1), goal = (WK.ins && WK.ins.goal) || 40000000, monthRev = AD.sum(AD.orders.filter(o => AD.counted(o) && o.ts >= mStart), o => o.total);
     C.ring('#chGoal', { value: monthRev, max: goal, label: 'of monthly goal', color: 'var(--c4)' }); $('#goalTxt').innerHTML = `<b>${M(monthRev)}</b> of ${M(goal)}`; $('#goalLeft').textContent = M(Math.max(0, goal - monthRev)) + ' to go this month';
     /* printed vs pdf, 12 months */
     const y = AD.series(365).buckets; C.bar('#chFormat', { labels: y.map(b => b.label), series: [{ name: 'Printed and delivery', data: y.map(b => b.print), color: 'var(--c1)' }, { name: 'PDF downloads', data: y.map(b => b.pdf), color: 'var(--c3)' }], stacked: true, tipFmt: M, height: 260 });
     /* attention */
-    const low = WK.books.filter(b => b.stock <= b.low).length + WK.sets.filter(s => s.stock <= 10).length, noFile = WK.papers.filter(p => !p.hasFile && p.pdfOn).length + WK.papers.filter(p => !p.hasFile).length * 0;
-    const items = [['r', 'cart', AD.orders.filter(o => o.status === 'pending').length + ' orders waiting to be confirmed', 'Confirm or contact the customer', 'orders.html'], ['w', 'card', AD.orders.filter(o => o.pay === 'pending' && o.status !== 'cancelled').length + ' payments not yet confirmed', 'Check mobile money statements', 'payments.html'], ['w', 'box', low + ' items running low on stock', 'Reprint or restock soon', 'inventory.html'], ['', 'mail', AD.messages.filter(m => m.status === 'new').length + ' new messages and quotation requests', 'Reply within one working day', 'messages.html'], ['r', 'pdf', WK.papers.filter(p => !p.hasFile).length + ' past papers have no PDF file uploaded', 'PDF buyers cannot download these', 'past-papers.html#missing']];
-    $('#attn').innerHTML = items.map(a => `<li class="${a[0]}"><span class="ai">${ic(a[1])}</span><div><b>${a[2]}</b><small>${a[3]}</small></div><a class="btn btn-line btn-sm" href="${a[4]}">Open</a></li>`).join('');
+    const A = (WK.ins && WK.ins.attention) || { pending: 0, unpaid: 0, low: 0, messages: 0, noFile: 0 }, RT = (WK.ins && WK.ins.routes) || {};
+    const many = (n, one, more) => n + ' ' + (n === 1 ? one : more);
+    const items = [['r', 'cart', many(A.pending, 'order is', 'orders are') + ' waiting to be confirmed', 'Confirm or contact the customer', RT.orders, A.pending], ['w', 'card', many(A.unpaid, 'payment is', 'payments are') + ' not yet confirmed', 'Check mobile money statements', RT.payments, A.unpaid], ['w', 'box', many(A.low, 'item is', 'items are') + ' running low on stock', 'Reprint or restock soon', RT.inventory, A.low], ['', 'mail', many(A.messages, 'message is', 'messages are') + ' waiting for an answer', 'Reply within one working day', RT.messages, A.messages], ['r', 'pdf', many(A.noFile, 'past paper has', 'past papers have') + ' no PDF file uploaded', 'PDF buyers cannot download these', RT.papers, A.noFile]].filter(a => a[5] > 0);
+    $('#attn').innerHTML = items.length ? items.map(a => `<li class="${a[0]}"><span class="ai">${ic(a[1])}</span><div><b>${a[2]}</b><small>${a[3]}</small></div><a class="btn btn-line btn-sm" href="${a[4]}">Open</a></li>`).join('') : `<li><span class="ai">${ic('check')}</span><div><b>You are all caught up</b><small>Nothing needs your attention right now</small></div></li>`;
     /* recent orders */
-    $('#recent tbody').innerHTML = AD.orders.slice(0, 7).map(o => `<tr class="rowlink" onclick="location.href='order.html?id=${o.id}'" style="cursor:pointer"><td><a class="link-row" href="order.html?id=${o.id}">${o.id}</a><div class="xs muted">${AD.rel(o.ts)}</div></td><td><div class="flex">${av(o.cust.name)}<span>${esc(o.cust.name)}</span></div></td><td class="num b">${M(o.total)}</td><td>${pBadge(o.pay)}</td><td>${sBadge(o.status)}</td></tr>`).join('');
-    $('#feed').innerHTML = AD.activity.slice(0, 6).map(a => `<li><span class="fd">${ic(a.icon)}</span><div><p><b>${a.user.name.split(' ')[0]}</b> ${esc(a.verb)} ${a.obj ? '<b>' + esc(a.obj) + '</b>' : ''}</p><small>${AD.rel(a.ts)}</small></div></li>`).join('');
+    const OURL = AD.sales ? AD.sales.routes.order : 'order.html';
+    $('#recent tbody').innerHTML = AD.orders.slice(0, 7).map(o => `<tr class="rowlink" onclick="location.href='${OURL}?id=${o.id}'" style="cursor:pointer"><td><a class="link-row" href="${OURL}?id=${o.id}">${o.id}</a><div class="xs muted">${AD.rel(o.ts)}</div></td><td><div class="flex">${av(o.cust.name)}<span>${esc(o.cust.name)}</span></div></td><td class="num b">${M(o.total)}</td><td>${pBadge(o.pay)}</td><td>${sBadge(o.status)}</td></tr>`).join('');
+    const feed = (WK.ins && WK.ins.activity) || [];
+    $('#feed').innerHTML = !feed.length ? '<li><div><p class="muted">Nothing has been changed yet.</p></div></li>' : feed.map(a => `<li><span class="fd">${ic(a.icon)}</span><div><p><b>${a.user.name.split(' ')[0]}</b> ${esc(a.verb)} ${a.obj ? '<b>' + esc(a.obj) + '</b>' : ''}</p><small>${AD.rel(a.ts)}</small></div></li>`).join('');
   };
 
   /* ================= SALES HELPERS (module 8) ================= */
@@ -602,27 +605,51 @@
       const bs = AD.bySubject(cur).slice(0, 10); C.bar('#chSubj', { labels: bs.map(x => x[0]), series: [{ name: 'Sales', data: bs.map(x => x[1]), color: 'var(--c6)' }], horizontal: true, tipFmt: M, height: 360 });
       const pr = units(cur, i => i.fmt !== 'pdf' && i.type === 'paper'), pd = units(cur, i => i.fmt === 'pdf'); C.donut('#chFmt', { items: [{ name: 'Printed papers', value: pr, color: 'var(--c1)' }, { name: 'PDF papers', value: pd, color: 'var(--c3)' }], centerLabel: 'Past papers sold', fmt: v => Math.round(v).toLocaleString(), size: 170 });
     }
-    draw(); $('#repSeg').addEventListener('seg', e => { days = +e.detail; draw(); });
+    draw(); $('#repSeg').addEventListener('seg', e => { days = +e.detail; draw(); funnel(days); links(days); });
     const y = AD.series(365).buckets, cats = y.map(b => AD.byCategory(AD.orders.filter(o => AD.counted(o) && o.ts >= b.s && o.ts < b.e)));
     C.bar('#chCat', { labels: y.map(b => b.label), series: [['Books', 'book', 'var(--c1)'], ['Past papers', 'paper', 'var(--c3)'], ['Exam sets', 'set', 'var(--c2)'], ['Holiday packages', 'pack', 'var(--c4)']].map(s => ({ name: s[0], data: cats.map(c => c[s[1]]), color: s[2] })), stacked: true, tipFmt: M, height: 280 });
     const first = {}; AD.orders.slice().reverse().forEach(o => { if (!(o.custId in first)) first[o.custId] = o.ts; });
     const nw = y.map(b => new Set(AD.orders.filter(o => o.ts >= b.s && o.ts < b.e && first[o.custId] === o.ts).map(o => o.custId)).size), rt = y.map((b, i) => new Set(AD.orders.filter(o => o.ts >= b.s && o.ts < b.e).map(o => o.custId)).size - nw[i]);
     C.bar('#chRet', { labels: y.map(b => b.label), series: [{ name: 'New customers', data: nw, color: 'var(--c5)' }, { name: 'Returning customers', data: rt.map(v => Math.max(0, v)), color: 'var(--c1)' }], stacked: true, height: 260, fmt: v => Math.round(v) });
-    const fn = [['Website visits', 18420], ['Viewed a product', 9860], ['Added to cart', 2140], ['Reached checkout', 980], ['Paid orders', 640]];
-    $('#funnel').innerHTML = fn.map(f => `<div class="fr"><span class="sm">${f[0]}</span><div><div class="fb" style="width:${f[1] / fn[0][1] * 100}%;min-width:64px">${f[1].toLocaleString()}</div></div><span class="sm muted tr">${(f[1] / fn[0][1] * 100).toFixed(1)}%</span></div>`).join('');
+    const funnel = d => {
+      const os = AD.orders.filter(o => o.ts >= NOW - d * DAY), fn = [['Orders placed', os.length], ['Accepted by the shop', os.filter(o => o.status !== 'pending' && o.status !== 'cancelled').length], ['Paid', os.filter(o => o.pay === 'paid').length], ['Completed', os.filter(o => o.status === 'completed').length]], top = Math.max(1, fn[0][1]);
+      $('#funnel').innerHTML = fn.map(f => `<div class="fr"><span class="sm">${f[0]}</span><div><div class="fb" style="width:${f[1] / top * 100}%;min-width:64px">${f[1].toLocaleString()}</div></div><span class="sm muted tr">${(f[1] / top * 100).toFixed(1)}%</span></div>`).join('');
+    };
+    const links = d => $$('a[data-rep]').forEach(a => { a.href = a.href.replace(/days=\d+/, 'days=' + d); });
+    funnel(days);
     const top = AD.customers.slice().sort((a, b) => b.spent - a.spent).slice(0, 6); $('#repTop').innerHTML = top.map(c => `<tr><td>${esc(c.name)}</td><td class="num">${c.orders}</td><td class="num"><b>${M(c.spent)}</b></td></tr>`).join('');
   };
 
   /* ================= TEAM / ACTIVITY ================= */
   P.team = function () {
-    const role = { 'Super admin': 'b-bad', Manager: 'b-info', 'Orders clerk': 'b-ok', 'Content editor': 'b-pur', Accountant: 'b-warn' };
-    ADM.table('#tbl', { rows: () => AD.team, id: u => u.id, size: 10, csvName: 'wakata-team', placeholder: 'Search team…', search: u => u.name + u.email + u.role, cols: [{ k: 'n', label: 'Team member', sort: u => u.name, html: u => `<div class="flex"><span class="avatar ${u.color}">${AD.initials(u.name)}</span><div><b>${esc(u.name)}</b><div class="xs muted">${u.email}</div></div></div>`, csv: u => u.name }, { k: 'r', label: 'Role', sort: u => u.role, html: u => `<span class="badge nodot ${role[u.role]}">${u.role}</span>`, csv: u => u.role }, { k: 's', label: 'Status', html: u => u.status === 'active' ? '<span class="badge b-ok">Active</span>' : '<span class="badge b-warn">Invite sent</span>', csv: u => u.status }, { k: 'l', label: 'Last active', sort: u => u.last, html: u => u.last ? AD.rel(u.last) : 'Never', csv: u => u.last ? AD.fmtDate(u.last) : '' }, { k: '2', label: 'Two-step', html: u => u.id < 3 ? '<span class="badge b-ok">On</span>' : '<span class="badge b-mute">Off</span>' }], actions: u => `<div class="row-actions"><button class="btn btn-ic" type="button" data-act="edit" aria-label="Edit">${ic('edit')}</button><button class="btn btn-ic" type="button" data-act="delete" aria-label="Remove">${ic('trash')}</button></div>`, onAct: (a) => { if (a === 'edit') { ADM.open('inviteModal'); return true; } return false; } });
+    const T = WK.ins, can = T.can.manage, base = T.routes.base, badge = { super_admin: 'b-bad', manager: 'b-info', editor: 'b-pur', support: 'b-ok' };
+    const status = u => u.status === 'active' ? '<span class="badge b-ok">Active</span>' : u.status === 'invited' ? '<span class="badge b-warn">Invite sent</span>' : '<span class="badge b-bad">Suspended</span>';
+    ADM.table('#tbl', { rows: () => AD.team, id: u => u.id, size: 10, csvName: 'wakata-team', placeholder: 'Search team…', search: u => u.name + ' ' + u.email + ' ' + u.roleLabel, empty: 'No team members yet',
+      cols: [
+        { k: 'n', label: 'Team member', sort: u => u.name, html: u => `<div class="flex"><span class="avatar ${u.color}">${AD.initials(u.name)}</span><div><b>${esc(u.name)}</b>${u.self ? ' <span class="badge nodot b-mute">You</span>' : ''}<div class="xs muted">${esc(u.email)}</div></div></div>`, csv: u => u.name },
+        { k: 'r', label: 'Role', sort: u => u.roleLabel, html: u => `<span class="badge nodot ${badge[u.role] || 'b-mute'}">${esc(u.roleLabel)}</span>`, csv: u => u.roleLabel },
+        { k: 's', label: 'Status', html: status, csv: u => u.status },
+        { k: 'l', label: 'Last sign-in', sort: u => u.last, html: u => u.last ? AD.rel(u.last) : 'Never', csv: u => u.last ? AD.fmtDate(u.last) : '' },
+        { k: '2', label: 'Two-step', html: u => u.twoFactor ? '<span class="badge b-ok">On</span>' : '<span class="badge b-mute">Off</span>', csv: u => u.twoFactor ? 'on' : 'off' }],
+      actions: can ? u => `<div class="row-actions">${u.status === 'invited' ? `<button class="btn btn-ic" type="button" data-act="invite" aria-label="Send the invitation again" title="Send the invitation again">${ic('mail')}</button>` : ''}<button class="btn btn-ic" type="button" data-act="edit" aria-label="Change">${ic('edit')}</button>${u.self ? '' : `<button class="btn btn-ic" type="button" data-act="delete" aria-label="Remove">${ic('trash')}</button>`}</div>` : null,
+      onAct: (a, u) => {
+        if (!u) return false;
+        if (a === 'edit') {
+          $('#editForm').action = base + '/' + u.id; $('#en').value = u.name; $('#er').value = u.role; $('#es').value = u.status === 'suspended' ? 'suspended' : 'active';
+          $('#editEmail').textContent = u.email;
+          $('#editHint').textContent = u.self ? 'You cannot change your own role or suspend yourself. Ask another super admin.' : u.status === 'invited' ? 'They have not chosen a password yet. The account becomes active when they do.' : '';
+          ADM.open('editModal'); return true;
+        }
+        if (a === 'invite') { ADM.post(base + '/' + u.id + '/invite', {}); return true; }
+        if (a === 'delete') { ADM.confirm({ title: 'Remove ' + u.name + '?', text: 'They will not be able to sign in any more. What they did stays in the activity log.', ok: 'Remove', icon: 'trash', onOk: () => ADM.post(base + '/' + u.id, {}, 'DELETE') }); return true; }
+        return false;
+      } });
   };
   P.activity = function () {
-    const mods = { book: 'Books', order: 'Orders', paper: 'Past papers', set: 'Exam sets', msg: 'Messages', setting: 'Settings', content: 'Site content', auth: 'Sign-ins' };
-    ADM.table('#tbl', { rows: () => AD.activity, id: a => a.id, size: 12, csvName: 'wakata-activity-log', placeholder: 'Search activity…', search: a => a.user.name + a.verb + a.obj + a.ip,
-      filters: [{ k: 'u', label: 'User', all: 'All team members', options: AD.team.slice(0, 4).map(u => [u.name, u.name]), fn: (a, v) => a.user.name === v }, { k: 'm', label: 'Area', all: 'All areas', options: Object.entries(mods), fn: (a, v) => a.module === v }],
-      cols: [{ k: 't', label: 'When', sort: a => a.ts, html: a => `${AD.fmtDate(a.ts)}<div class="xs muted">${AD.fmtTime(a.ts)}</div>`, csv: a => AD.fmtDate(a.ts) + ' ' + AD.fmtTime(a.ts) }, { k: 'u', label: 'User', html: a => `<div class="flex"><span class="avatar sm ${a.user.color}">${AD.initials(a.user.name)}</span>${a.user.name}</div>`, csv: a => a.user.name }, { k: 'a', label: 'Action', html: a => `<span class="fd" style="display:inline-grid;width:26px;height:26px;border-radius:50%;background:var(--tint);color:var(--blue);place-items:center;vertical-align:middle;margin-right:.4rem">${ic(a.icon)}</span>${esc(a.verb)} <b>${esc(a.obj)}</b>`, csv: a => a.verb + ' ' + a.obj }, { k: 'm', label: 'Area', html: a => `<span class="badge nodot b-mute">${mods[a.module]}</span>`, csv: a => mods[a.module] }, { k: 'ip', label: 'IP address', html: a => `<code class="xs">${a.ip}</code>` }] });
+    const mods = (WK.ins && WK.ins.areas) || {}, names = [...new Set(AD.activity.map(a => a.user.name))].sort();
+    ADM.table('#tbl', { rows: () => AD.activity, id: a => a.id, size: 12, csvName: 'wakata-activity-log', placeholder: 'Search activity…', search: a => a.user.name + ' ' + a.verb + ' ' + a.obj + ' ' + a.ip, empty: 'Nothing has been logged yet',
+      filters: [{ k: 'u', label: 'User', all: 'All team members', options: names.map(n => [n, n]), fn: (a, v) => a.user.name === v }, { k: 'm', label: 'Area', all: 'All areas', options: Object.entries(mods), fn: (a, v) => a.module === v }],
+      cols: [{ k: 't', label: 'When', sort: a => a.ts, html: a => `${AD.fmtDate(a.ts)}<div class="xs muted">${AD.fmtTime(a.ts)}</div>`, csv: a => AD.fmtDate(a.ts) + ' ' + AD.fmtTime(a.ts) }, { k: 'u', label: 'User', html: a => `<div class="flex"><span class="avatar sm ${a.user.color}">${AD.initials(a.user.name)}</span>${esc(a.user.name)}</div>`, csv: a => a.user.name }, { k: 'a', label: 'Action', html: a => `<span class="fd" style="display:inline-grid;width:26px;height:26px;border-radius:50%;background:var(--tint);color:var(--blue);place-items:center;vertical-align:middle;margin-right:.4rem">${ic(a.icon)}</span>${esc(a.verb)} ${a.obj ? '<b>' + esc(a.obj) + '</b>' : ''}`, csv: a => a.verb + ' ' + a.obj }, { k: 'm', label: 'Area', html: a => `<span class="badge nodot b-mute">${esc(mods[a.module] || a.module)}</span>`, csv: a => mods[a.module] || a.module }, { k: 'ip', label: 'IP address', html: a => `<code class="xs">${esc(a.ip)}</code>` }] });
   };
 
   /* ================= SETTINGS / PROFILE / AUTH ================= */

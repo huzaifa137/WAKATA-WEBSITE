@@ -1,9 +1,11 @@
 <?php
 
+use App\Http\Controllers\Admin\ActivityController;
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\BookController;
 use App\Http\Controllers\Admin\ContentController;
 use App\Http\Controllers\Admin\CustomerController;
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DeliveryController;
 use App\Http\Controllers\Admin\ExamSetController;
 use App\Http\Controllers\Admin\FaqController;
@@ -14,8 +16,10 @@ use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PackageController;
 use App\Http\Controllers\Admin\PaperController;
 use App\Http\Controllers\Admin\PaymentController;
+use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\SubscriberController;
+use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\TaxonomyController;
 use App\Http\Controllers\Admin\TestimonialController;
 use Illuminate\Http\Request;
@@ -32,6 +36,8 @@ use Illuminate\Support\Facades\Route;
 | Module 7: the catalogue pages (books, past papers, exam sets, packages, subjects and levels, media, inventory)
 | are real. Looking is open to every signed-in admin; saving, deleting and uploading also needs admin.catalogue
 | (super admin, manager or editor).
+| Module 10: the dashboard, reports, team and activity log are real. Looking is open to every signed-in admin; downloading reports needs
+| admin.can:reports (super admin or manager) and managing the team needs admin.can:team (super admin).
 | Module 8: the sales pages (orders, order, payments, deliveries, customers) are real. Looking is open to every signed-in admin;
 | changing orders, deliveries and customers needs admin.can:sales (super admin, manager or support); handling money
 | (confirm and refund payments, payment methods, delivery fees) needs admin.can:payments (super admin or manager).
@@ -63,7 +69,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('/security/two-factor', [AuthController::class, 'twoFactor'])->name('two-factor');
 
         // Pages that use the sidebar + topbar shell
-        Route::view('/dashboard', 'admin.dashboard')->name('dashboard');
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
         // ---- Catalogue (module 7): looking ----
         Route::get('/books', [BookController::class, 'index'])->name('books');
@@ -196,9 +202,26 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::put('/deliveries/options', [DeliveryController::class, 'options'])->name('deliveries.options');
         });
 
-        Route::view('/reports', 'admin.reports')->name('reports');
-        Route::view('/team', 'admin.team')->name('team');
-        Route::view('/activity', 'admin.activity')->name('activity');
+        // ---- Insights and system (module 10): looking is open to every signed-in admin ----
+        Route::get('/reports', [ReportController::class, 'index'])->name('reports');
+        Route::get('/team', [TeamController::class, 'index'])->name('team');
+        Route::get('/activity', [ActivityController::class, 'index'])->name('activity');
+
+        // Downloads and the emailed report carry customer details: super admin or manager
+        Route::middleware('admin.can:reports')->group(function () {
+            Route::get('/reports/export/{report}.{format}', [ReportController::class, 'export'])
+                ->where('report', 'sales|orders|products|customers|payments|stock')->where('format', 'csv|pdf')->name('reports.export');
+            Route::post('/reports/schedule', [ReportController::class, 'schedule'])->name('reports.schedule');
+        });
+
+        // Inviting, changing and removing team members: super admin only
+        Route::middleware('admin.can:team')->group(function () {
+            Route::post('/team', [TeamController::class, 'store'])->name('team.store');
+            Route::put('/team/{member}', [TeamController::class, 'update'])->whereNumber('member')->name('team.update');
+            Route::post('/team/{member}/invite', [TeamController::class, 'invite'])->whereNumber('member')->name('team.invite');
+            Route::delete('/team/{member}', [TeamController::class, 'destroy'])->whereNumber('member')->name('team.destroy');
+        });
+
         Route::view('/profile', 'admin.profile')->name('profile');
     });
 

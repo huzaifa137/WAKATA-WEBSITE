@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
+ * Module 10 adds admin.can:reports (downloads and the emailed report) and admin.can:team (invite, change, remove).
  * Module 8: admin.can:sales (orders, deliveries, customers) and admin.can:payments (confirm and refund payments, fees,
  * payment methods). The roles are decided in Admin::canManageSales() and Admin::canManagePayments(). Runs after admin.auth.
  */
@@ -22,6 +23,8 @@ class CanManage
             'inbox'    => $admin->canManageInbox(),
             'content'  => $admin->canManageContent(),
             'settings' => $admin->canManageSettings(),
+            'reports'  => $admin->canExportReports(),
+            'team'     => $admin->canManageTeam(),
             default    => false,
         };
 
@@ -31,6 +34,8 @@ class CanManage
                 'inbox'    => 'Your role can read messages and subscribers but not answer or change them.',
                 'content'  => 'Your role can look at the website content but not change it.',
                 'settings' => 'Only a super admin or manager can change settings.',
+                'reports'  => 'Only a super admin or manager can download reports.',
+                'team'     => 'Only a super admin can manage the team.',
                 default    => 'Your role can look at sales but not change them.',
             };
 

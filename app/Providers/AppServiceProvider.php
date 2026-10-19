@@ -8,6 +8,7 @@ use App\Support\Portal;
 use App\Support\ShopSettings;
 use App\Support\SiteContent;
 use App\Support\SiteSettings;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -31,6 +32,10 @@ class AppServiceProvider extends ServiceProvider
         ShopSettings::apply();
         SiteContent::apply();
         SiteSettings::apply();
+
+        // Module 10: the emailed report (Reports > Schedule). Runs every morning and decides for itself whether today is the day.
+        // The server needs the usual cron line:  * * * * * php artisan schedule:run
+        $this->callAfterResolving(Schedule::class, fn (Schedule $schedule) => $schedule->command('wakata:send-report')->dailyAt('07:00')->withoutOverlapping());
 
         // @c('home.title') prints a text staff can edit under Site content (escaped)
         Blade::directive('c', fn ($expression) => "<?php echo e(\\App\\Support\\SiteContent::get({$expression})); ?>");

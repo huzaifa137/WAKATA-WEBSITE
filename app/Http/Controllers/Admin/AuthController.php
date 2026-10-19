@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Mail\AdminOtpMail;
 use App\Mail\ResetPasswordMail;
 use App\Models\Admin;
+use App\Support\Activity;
 use App\Support\RememberLogin;
 use App\Support\ResetTokens;
 use Illuminate\Http\JsonResponse;
@@ -97,6 +98,8 @@ class AuthController extends Controller
             RememberLogin::issue($admin, self::COOKIE);
         }
 
+        Activity::log($admin, 'auth', 'check', 'Signed in', null, $request->ip());
+
         $to = $request->session()->pull('admin.intended');
 
         return redirect()->to($to && Str::startsWith($to, url('/admin')) ? $to : route('admin.dashboard'));
@@ -105,7 +108,12 @@ class AuthController extends Controller
     public function logout(Request $request): RedirectResponse
     {
         $id = $request->session()->get('LoggedAdmin');
-        RememberLogin::forget($id ? Admin::find($id) : null, self::COOKIE);
+        $who = $id ? Admin::find($id) : null;
+        RememberLogin::forget($who, self::COOKIE);
+
+        if ($who) {
+            Activity::log($who, 'auth', 'logout', 'Signed out', null, $request->ip());
+        }
 
         $request->session()->forget(['LoggedAdmin', 'AdminPending', 'AdminPendingRemember', 'AdminLocked', 'admin.intended']);
         $request->session()->regenerate();
@@ -263,8 +271,11 @@ class AuthController extends Controller
         }
 
         // Clearing remember_token signs out every "keep me signed in" device.
-        $admin->forceFill(['password' => $data['password'], 'remember_token' => null])->save();
+        // The same link is how an invited team member (status "invited") chooses a first password and joins.
+        $joined = $admin->status === 'invited';
+        $admin->forceFill(['password' => $data['password'], 'remember_token' => null, 'status' => $joined ? 'active' : $admin->status])->save();
         ResetTokens::forget(self::GUARD, $admin->email);
+        Activity::log($admin, 'auth', 'key', $joined ? 'Accepted the invitation and chose a password' : 'Reset the password', null, $request->ip());
 
         return redirect()->route('admin.login')->with('status', 'Password updated. Please sign in with your new password.');
     }
