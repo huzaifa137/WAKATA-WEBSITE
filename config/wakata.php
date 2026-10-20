@@ -43,6 +43,12 @@ return [
     // Customer portal (module 6)
     // How many times a customer can download each PDF of an order. Support can raise it for one file (file_downloads.max_downloads).
     'download_limit' => 5,
+
+    // The admin activity log is kept this many days (at least 30), then pruned by `php artisan wakata:prune-activity` (weekly)
+    'activity_keep_days' => (int) env('ACTIVITY_KEEP_DAYS', 365),
+
+    // Big newsletters: false = sent right after the page loads (no queue worker needed); true = put on the queue (run `php artisan queue:work`)
+    'newsletter_queue' => (bool) env('NEWSLETTER_QUEUE', false),
     // Optional: staff address told when a customer writes in from Help and support. Falls back to WAKATA_ORDER_NOTIFY.
     'support_notify' => env('WAKATA_SUPPORT_NOTIFY') ?: env('WAKATA_ORDER_NOTIFY'),
     // While a paper has no PDF uploaded yet, hand out a small licence sheet instead of the real file, so the download flow can be tried.

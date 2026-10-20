@@ -51,9 +51,20 @@ class AdminSales
 
         $downloads = FileDownload::query()->selectRaw('order_id, SUM(used) as used')->groupBy('order_id')->pluck('used', 'order_id');
 
+        $list = $orders->map(fn (Order $o) => self::order($o, $orderKey[$o->id], (int) ($downloads[$o->id] ?? 0)))->values()->all();
+        $who  = array_values($keyed);
+
+        // Team members who do not work with orders (the content editor) see the numbers but not who the customers are
+        $private = ! $admin?->canManageSales();
+        if ($private) {
+            $list = array_map([self::class, 'redactOrder'], $list);
+            $who  = array_map([self::class, 'redactCustomer'], $who);
+        }
+
         return [
-            'orders'    => $orders->map(fn (Order $o) => self::order($o, $orderKey[$o->id], (int) ($downloads[$o->id] ?? 0)))->values()->all(),
-            'customers' => array_values($keyed),
+            'orders'    => $list,
+            'customers' => $who,
+            'redacted'  => $private,
             'delivery'  => ShopSettings::delivery(),
             'payments'  => collect(config('wakata.payments_all'))->map(fn ($label, $key) => ['label' => $label, 'enabled' => ShopSettings::paymentFlags()[$key]])->all(),
             'types'     => Customer::TYPES,
@@ -61,6 +72,27 @@ class AdminSales
             'routes'    => self::routes(),
             'items'     => self::sellable(),
         ];
+    }
+
+    /** "Green Hill School" becomes "Green H." (first word and the initial of the second): enough to recognise a repeat buyer in a chart, not enough to contact them. */
+    public static function shortName(string $name): string
+    {
+        $parts = preg_split('/\s+/', trim($name), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        return count($parts) > 1 ? $parts[0] . ' ' . mb_strtoupper(mb_substr($parts[1], 0, 1)) . '.' : ($parts[0] ?? '');
+    }
+
+    private static function redactOrder(array $o): array
+    {
+        return array_merge($o, [
+            'name' => self::shortName($o['name']), 'email' => '', 'phone' => '', 'address' => '', 'note' => '', 'adminNote' => '', 'courier' => '', 'txn' => '',
+            'events' => array_map(fn ($e) => array_merge($e, ['note' => '']), $o['events']),
+        ]);
+    }
+
+    private static function redactCustomer(array $c): array
+    {
+        return array_merge($c, ['name' => self::shortName($c['name']), 'email' => '', 'phone' => '', 'contact' => '', 'note' => '']);
     }
 
     /** One order in the prototype's shape. */

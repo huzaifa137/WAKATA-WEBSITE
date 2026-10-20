@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Mail\AdminOtpMail;
 use App\Mail\ResetPasswordMail;
 use App\Models\Admin;
+use App\Support\PasswordRules;
 use App\Support\Activity;
 use App\Support\RememberLogin;
 use App\Support\ResetTokens;
@@ -48,6 +49,8 @@ class AuthController extends Controller
         if (RateLimiter::tooManyAttempts($key, 5)) {
             $minutes = (int) ceil(RateLimiter::availableIn($key) / 60);
 
+            $this->logFailure($request, Admin::where('email', $data['email'])->first(), 'Sign-in blocked: too many attempts', $data['email']);
+
             return back()->withInput($request->only('email'))
                 ->withErrors(['email' => "Too many attempts. Try again in {$minutes} minute(s)."]);
         }
@@ -56,6 +59,7 @@ class AuthController extends Controller
 
         if (! $admin || ! Hash::check($data['password'], $admin->password)) {
             RateLimiter::hit($key, 300);
+            $this->logFailure($request, $admin, 'Failed sign-in', $data['email']);
 
             return back()->withInput($request->only('email'))
                 ->withErrors(['email' => 'These credentials do not match our records.']);
@@ -207,6 +211,22 @@ class AuthController extends Controller
         return response()->json(['enabled' => $enabled]);
     }
 
+    /**
+     * A failed sign-in is a line in the activity log, so the team can see someone guessing a password.
+     * An attacker could fill the log with made-up emails, so only the first 30 failures an hour from one address are written.
+     */
+    private function logFailure(Request $request, ?Admin $admin, string $verb, string $email): void
+    {
+        $key = 'admin-fail-log|' . $request->ip();
+
+        if (RateLimiter::tooManyAttempts($key, 30)) {
+            return;
+        }
+
+        RateLimiter::hit($key, 3600);
+        Activity::log($admin, 'auth', 'lock', $verb, $email, $request->ip(), 'Unknown visitor');
+    }
+
     /* ------------------------------------------------- forgot and reset */
 
     public function showForgot(): View
@@ -258,7 +278,7 @@ class AuthController extends Controller
         $data = $request->validate([
             'token'    => ['required', 'string'],
             'email'    => ['required', 'email'],
-            'password' => ['required', 'string', 'min:8', 'max:100'],
+            'password' => ['required', 'string', PasswordRules::admin(), 'max:100'],
             'confirm'  => ['required', 'same:password'],
         ], [
             'confirm.same' => 'The passwords do not match.',

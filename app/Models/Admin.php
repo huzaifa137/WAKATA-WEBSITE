@@ -16,7 +16,7 @@ class Admin extends Model
         'support'     => 'Support',
     ];
 
-    protected $fillable = ['name', 'email', 'phone', 'password', 'role', 'status', 'two_factor_enabled', 'invited_at', 'invited_by'];
+    protected $fillable = ['name', 'email', 'phone', 'password', 'role', 'status', 'two_factor_enabled', 'invited_at', 'invited_by', 'avatar_path', 'prefs'];
 
     protected $hidden = ['password', 'remember_token', 'otp_code'];
 
@@ -28,6 +28,7 @@ class Admin extends Model
             'otp_expires_at'     => 'datetime',
             'last_login_at'      => 'datetime',
             'invited_at'         => 'datetime',
+            'prefs'              => 'array',
         ];
     }
 
@@ -65,6 +66,18 @@ class Admin extends Model
     public function canManageSettings(): bool
     {
         return in_array($this->role, ['super_admin', 'manager'], true);
+    }
+
+    /** The profile photo's address, or null (the avatar then shows initials). */
+    public function getAvatarUrlAttribute(): ?string
+    {
+        return $this->avatar_path ? asset($this->avatar_path) : null;
+    }
+
+    /** One of this person's own email alert choices (profile page). Off until they switch it on. */
+    public function wantsAlert(string $kind): bool
+    {
+        return (bool) (($this->prefs ?? [])['alert_' . $kind] ?? false);
     }
 
     /** Roles that download reports and data exports, and schedule the emailed report. Looking at reports is open to everyone. */

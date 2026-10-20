@@ -10,7 +10,7 @@ class Newsletter extends Model
 
     public $timestamps = false;
 
-    protected $fillable = ['subject', 'body', 'audience', 'sent_count', 'failed_count', 'admin_id', 'admin_name', 'sent_at'];
+    protected $fillable = ['subject', 'body', 'audience', 'status', 'total', 'sent_count', 'failed_count', 'admin_id', 'admin_name', 'sent_at'];
 
     protected function casts(): array
     {

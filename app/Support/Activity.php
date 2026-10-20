@@ -47,12 +47,12 @@ class Activity
     private const READS = ['settings.export', 'reports.export'];
 
     /** Write one line. Never throws: a broken log must not break the change that was just saved. */
-    public static function log(?Admin $admin, string $area, string $icon, string $verb, ?string $object = null, ?string $ip = null): void
+    public static function log(?Admin $admin, string $area, string $icon, string $verb, ?string $object = null, ?string $ip = null, ?string $name = null): void
     {
         try {
             AdminActivity::create([
                 'admin_id'   => $admin?->id,
-                'admin_name' => $admin?->name ?? 'System',
+                'admin_name' => $admin?->name ?? $name ?? 'System',
                 'area'       => $area,
                 'icon'       => $icon,
                 'verb'       => Str::limit($verb, 120, ''),
@@ -203,6 +203,13 @@ class Activity
             'settings.notifications' => ['setting', 'settings', 'Changed the email alerts', null],
             'settings.integrations'  => ['setting', 'settings', 'Changed the integrations', null],
             'settings.export'        => ['setting', 'download', 'Downloaded an export of', fn (Request $r) => (string) $r->route('what')],
+
+            // My profile (module 11)
+            'profile.update'         => ['auth', 'user', 'Updated their profile', null],
+            'profile.photo'          => ['auth', 'image', 'Changed their profile photo', null],
+            'profile.photo.remove'   => ['auth', 'image', 'Removed their profile photo', null],
+            'profile.password'       => ['auth', 'key', 'Changed their password', null],
+            'profile.notifications'  => ['auth', 'mail', 'Changed their email alerts', null],
 
             // Insights and system (module 10)
             'reports.export'         => ['report', 'download', 'Downloaded report', fn (Request $r) => trim($r->route('report') . ' (' . $r->route('format') . ')')],

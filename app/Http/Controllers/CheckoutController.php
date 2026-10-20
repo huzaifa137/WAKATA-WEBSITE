@@ -7,20 +7,58 @@ use App\Mail\OrderReceivedStaffMail;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Support\Cart;
+use App\Support\Outbox;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 /** Turns the session cart into an order. Prices, fees and totals are always worked out here, never taken from the browser. */
 class CheckoutController extends Controller
 {
+    /** Session key: the order this browser placed last (number, email, time), used to answer a double click. */
+    private const LAST = 'wk_last_order';
+
     public function store(Request $request): JsonResponse
     {
-        $cart   = Cart::current();
+        $cart = Cart::current();
+
+        // A double click, or a second tap while the first is still working: the first one makes the order, the second gets the same answer
+        $last = $request->session()->get(self::LAST);
+        if (! $cart->raw() && is_array($last) && now()->timestamp - ($last['at'] ?? 0) <= 120
+            && Str::lower(trim((string) $request->input('email'))) === ($last['email'] ?? null)
+            && ($done = Order::where('number', $last['number'])->first())) {
+            return $this->placed($done);
+        }
+
+        $lock = Cache::lock('checkout:' . $request->session()->getId(), 20);
+        if (! $lock->get()) {
+            return response()->json(['ok' => false, 'message' => 'Your order is already being placed. Please wait a moment.'], 409);
+        }
+
+        try {
+            return $this->place($request, $cart);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function place(Request $request, Cart $cart): JsonResponse
+    {
         $priced = $cart->priced();
+
+        // Stock ran out since the item was added: show the updated cart (even when nothing is left) instead of a bare "empty cart"
+        if ($priced['adjusted'] > 0) {
+            return response()->json([
+                'ok'      => false,
+                'message' => $priced['lines']
+                    ? 'Some items are low on stock, so we updated the quantities in your cart. Please check it and place the order again.'
+                    : 'Sorry, the items in your cart have just sold out.',
+                'cart'    => $priced,
+            ], 409);
+        }
 
         if (! $priced['lines']) {
             return response()->json(['ok' => false, 'message' => 'Your cart is empty.', 'cart' => $priced], 422);
@@ -123,15 +161,21 @@ class CheckoutController extends Controller
         });
 
         $cart->clear();
+        $request->session()->put(self::LAST, ['number' => $order->number, 'email' => $order->customer_email, 'at' => now()->timestamp]);
         $this->notify($order->load('items'));
 
+        return $this->placed($order, 201);
+    }
+
+    private function placed(Order $order, int $status = 200): JsonResponse
+    {
         return response()->json([
             'ok'      => true,
             'ref'     => $order->number,
             'total'   => $order->total,
             'payName' => $order->payment_label,
-            'cart'    => ['lines' => [], 'count' => 0, 'subtotal' => 0, 'physical' => false, 'removed' => 0],
-        ], 201);
+            'cart'    => ['lines' => [], 'count' => 0, 'subtotal' => 0, 'physical' => false, 'removed' => 0, 'adjusted' => 0],
+        ], $status);
     }
 
     /** The order belongs to the signed-in customer. Guests can still order: it just is not tied to an account. */
@@ -147,21 +191,13 @@ class CheckoutController extends Controller
         return $customer && $customer->isActive() ? $customer->id : null;
     }
 
-    /** Emails never block the order: a mail outage is logged and the order stands. */
+    /** Emails never block the order: they go out after the response, and a mail outage is logged and the order stands. */
     private function notify(Order $order): void
     {
-        try {
-            Mail::to($order->customer_email)->send(new OrderPlacedMail($order));
-        } catch (\Throwable $e) {
-            report($e);
-        }
+        Outbox::send($order->customer_email, new OrderPlacedMail($order));
 
         foreach (\App\Support\SiteSettings::alertRecipients('orders') as $staff) {
-            try {
-                Mail::to($staff)->send(new OrderReceivedStaffMail($order));
-            } catch (\Throwable $e) {
-                report($e);
-            }
+            Outbox::send($staff, new OrderReceivedStaffMail($order));
         }
     }
 }

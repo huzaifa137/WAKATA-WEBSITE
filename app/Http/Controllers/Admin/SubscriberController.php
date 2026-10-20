@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendNewsletter;
 use App\Mail\GeneralMail;
 use App\Models\Admin;
 use App\Models\Customer;
@@ -18,6 +19,9 @@ class SubscriberController extends Controller
 {
     /** One send goes to at most this many people, so it finishes inside a normal web request. */
     public const SEND_LIMIT = 1000;
+
+    /** More recipients than this and the newsletter is sent after the page has loaded instead of while it waits. */
+    public const BACKGROUND_OVER = 25;
 
     public function index()
     {
@@ -108,20 +112,27 @@ class SubscriberController extends Controller
             return back()->withInput()->with('fail', 'This audience has ' . $subs->count() . ' people. Send to a smaller audience: one send reaches up to ' . self::SEND_LIMIT . '.');
         }
 
-        @set_time_limit(300);
-        $ok = 0;
-        $failed = 0;
-        foreach ($subs as $s) {
-            try {
-                Mail::to($s->email)->send(new GeneralMail($data['subject'], $data['body'], null, null, null, null, route('newsletter.unsubscribe', $s->token)));
-                $ok++;
-            } catch (\Throwable $e) {
-                report($e);
-                $failed++;
-            }
+        // A short list goes out now and the page reports how many arrived. A long one is sent after this page has loaded,
+        // so the team is not left waiting (and the web server does not time out): the history shows "sending" until it is done.
+        $background = $subs->count() > self::BACKGROUND_OVER;
+
+        $letter = Newsletter::create([
+            'subject' => $data['subject'], 'body' => $data['body'], 'audience' => $data['audience'], 'status' => $background ? 'sending' : 'sent',
+            'total' => $subs->count(), 'sent_count' => 0, 'failed_count' => 0, 'admin_id' => $admin->id, 'admin_name' => $admin->name, 'sent_at' => now(),
+        ]);
+
+        $job = new SendNewsletter($letter->id, $subs->pluck('id')->all(), $data['subject'], $data['body']);
+
+        if ($background) {
+            config('wakata.newsletter_queue') ? dispatch($job) : dispatch($job)->afterResponse();
+
+            return back()->with('status', 'The newsletter is being sent to ' . $subs->count() . ' people. The history shows the final count in a few minutes.');
         }
 
-        Newsletter::create(['subject' => $data['subject'], 'body' => $data['body'], 'audience' => $data['audience'], 'sent_count' => $ok, 'failed_count' => $failed, 'admin_id' => $admin->id, 'admin_name' => $admin->name, 'sent_at' => now()]);
+        $job->handle();
+        $letter->refresh();
+        $ok     = $letter->sent_count;
+        $failed = $letter->failed_count;
 
         return back()->with($ok ? 'status' : 'fail', $ok ? 'Newsletter sent to ' . $ok . ($ok === 1 ? ' person' : ' people') . ($failed ? ' (' . $failed . ' could not be reached).' : '.') : 'No email could be sent. Check the mail settings.');
     }

@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PackageController;
 use App\Http\Controllers\Admin\PaperController;
 use App\Http\Controllers\Admin\PaymentController;
+use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\SubscriberController;
@@ -222,7 +223,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('/team/{member}', [TeamController::class, 'destroy'])->whereNumber('member')->name('team.destroy');
         });
 
-        Route::view('/profile', 'admin.profile')->name('profile');
+        // My profile: every signed-in team member, whatever the role
+        Route::get('/profile', [ProfileController::class, 'show'])->name('profile');
+        Route::post('/profile', [ProfileController::class, 'update'])->name('profile.update');
+        Route::post('/profile/photo', [ProfileController::class, 'photo'])->name('profile.photo');
+        Route::delete('/profile/photo', [ProfileController::class, 'removePhoto'])->name('profile.photo.remove');
+        Route::post('/profile/password', [ProfileController::class, 'password'])->name('profile.password');
+        Route::post('/profile/notifications', [ProfileController::class, 'notifications'])->name('profile.notifications');
     });
 
     // Prototype links (books.html, order.html?id=...) keep working and land on the new URLs.

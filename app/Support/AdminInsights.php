@@ -37,7 +37,7 @@ class AdminInsights
 
         $notes = [];
         if ($latest) {
-            $notes[] = ['icon' => 'cart', 't' => 'New order ' . $latest->number, 's' => 'UGX ' . number_format($latest->total) . ' from ' . $latest->customer_name, 'ts' => $latest->created_at->getTimestampMs()];
+            $notes[] = ['icon' => 'cart', 't' => 'New order ' . $latest->number, 's' => 'UGX ' . number_format($latest->total) . ($admin?->canManageSales() ? ' from ' . $latest->customer_name : ''), 'ts' => $latest->created_at->getTimestampMs()];
         }
         if ($unpaid) {
             $notes[] = ['icon' => 'card', 't' => 'Payments waiting to be confirmed', 's' => $unpaid . ($unpaid === 1 ? ' order is' : ' orders are') . ' not paid yet', 'ts' => now()->getTimestampMs()];
@@ -52,19 +52,19 @@ class AdminInsights
         return [
             'badges'        => ['orders' => $pending, 'messages' => $messages],
             'notifications' => $notes,
-            'search'        => self::search(),
+            'search'        => self::search((bool) $admin?->canManageSales()),
         ];
     }
 
     /** What the Ctrl K box can find beyond the page names: titles, the newest orders and customers. */
-    private static function search(): array
+    private static function search(bool $withPeople): array
     {
         return [
             'books' => Book::with('subject:id,name')->orderBy('title')->limit(300)->get(['id', 'slug', 'title', 'subject_id'])
                 ->map(fn (Book $b) => ['t' => $b->title, 's' => (string) ($b->subject->name ?? ''), 'href' => route('admin.book-form', ['id' => $b->slug])])->all(),
             'orders' => Order::orderByDesc('created_at')->orderByDesc('id')->limit(60)->get(['number', 'customer_name', 'total'])
-                ->map(fn (Order $o) => ['t' => $o->number, 's' => $o->customer_name . ' · UGX ' . number_format($o->total), 'href' => route('admin.order', ['id' => $o->number])])->all(),
-            'customers' => Customer::orderBy('name')->limit(200)->get(['name', 'type'])
+                ->map(fn (Order $o) => ['t' => $o->number, 's' => ($withPeople ? $o->customer_name . ' · ' : '') . 'UGX ' . number_format($o->total), 'href' => route('admin.order', ['id' => $o->number])])->all(),
+            'customers' => ! $withPeople ? [] : Customer::orderBy('name')->limit(200)->get(['name', 'type'])
                 ->map(fn (Customer $c) => ['t' => $c->name, 's' => (string) $c->type, 'href' => route('admin.customers', ['q' => $c->name])])->all(),
         ];
     }

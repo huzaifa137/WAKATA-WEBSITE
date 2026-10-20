@@ -36,6 +36,7 @@ class AppServiceProvider extends ServiceProvider
         // Module 10: the emailed report (Reports > Schedule). Runs every morning and decides for itself whether today is the day.
         // The server needs the usual cron line:  * * * * * php artisan schedule:run
         $this->callAfterResolving(Schedule::class, fn (Schedule $schedule) => $schedule->command('wakata:send-report')->dailyAt('07:00')->withoutOverlapping());
+        $this->callAfterResolving(Schedule::class, fn (Schedule $schedule) => $schedule->command('wakata:prune-activity')->weeklyOn(0, '03:00')->withoutOverlapping());
 
         // @c('home.title') prints a text staff can edit under Site content (escaped)
         Blade::directive('c', fn ($expression) => "<?php echo e(\\App\\Support\\SiteContent::get({$expression})); ?>");

@@ -25,3 +25,6 @@ Thumbs.db
 
 # Patches are applied, not committed
 /*.patch
+
+# Admin profile photos uploaded by the team (module 11)
+/public/uploads/avatars

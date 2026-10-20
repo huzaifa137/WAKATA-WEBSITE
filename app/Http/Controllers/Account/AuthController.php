@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Mail\CustomerOtpMail;
 use App\Mail\ResetPasswordMail;
 use App\Models\Customer;
+use App\Support\PasswordRules;
 use App\Support\CustomerSession;
 use App\Support\RememberLogin;
 use App\Support\ResetTokens;
@@ -87,7 +88,7 @@ class AuthController extends Controller
             'phone'    => ['required', 'string', 'max:30'],
             'type'     => ['required', 'in:' . implode(',', Customer::TYPES)],
             'school'   => ['nullable', 'string', 'max:160'],
-            'password' => ['required', 'string', 'min:8', 'max:100'],
+            'password' => ['required', 'string', PasswordRules::customer(), 'max:100'],
             'confirm'  => ['required', 'same:password'],
             'terms'    => ['accepted'],
         ], [
@@ -263,7 +264,7 @@ class AuthController extends Controller
         $data = $request->validate([
             'token'    => ['required', 'string'],
             'email'    => ['required', 'email'],
-            'password' => ['required', 'string', 'min:8', 'max:100'],
+            'password' => ['required', 'string', PasswordRules::customer(), 'max:100'],
             'confirm'  => ['required', 'same:password'],
         ], [
             'confirm.same' => 'The passwords do not match.',

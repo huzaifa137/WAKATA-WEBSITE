@@ -88,7 +88,7 @@ class AdminSalesTest extends TestCase
         Customer::create(['name' => 'Mrs Teacher', 'email' => 't@test.test', 'password' => 'x', 'type' => 'Teacher']);
         $this->order(); $this->order(); $this->order(['customer_email' => 'other@x.test', 'customer_name' => 'Other']);
 
-        $payload = \App\Support\AdminSales::payload(null);
+        $payload = \App\Support\AdminSales::payload(Admin::create(['name' => 'Boss', 'email' => 'boss@example.com', 'password' => 'secret-pass-1', 'role' => 'super_admin', 'status' => 'active']));
         $guests  = array_filter($payload['customers'], fn ($c) => $c['type'] === 'Guest');
 
         $this->assertCount(2, $guests);

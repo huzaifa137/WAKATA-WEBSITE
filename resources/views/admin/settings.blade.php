@@ -17,6 +17,7 @@
       <div class="row2">
         <div class="field "><label for="email">Public email <span class="req">*</span></label><input id="email" name="email" type="email" value="{{ old('email', $email) }}" required><span class="hint">Shown on the Contact page and in emails. The same as “Email” under Site content, Contact.</span><span class="err">Enter a valid email address.</span></div>
         <div class="field "><label for="goal">Monthly sales goal (UGX) <span class="req">*</span></label><input id="goal" name="goal" type="number" min="0" step="1000" value="{{ old('goal', $s['goal']) }}" required><span class="hint">The dashboard compares sales against it.</span><span class="err">Enter the goal as a whole number.</span></div>
+        <label class="switch"><input type="checkbox" name="stock_block" value="1" @checked(old('stock_block', $s['stock_block']))><span class="trk"></span><span class="t"><b>Stop selling printed items that are out of stock</b><small>Customers cannot add more than the stock on hand. Leave this off until the stock numbers of your products are entered, otherwise nothing can be bought.</small></span></label>
       </div>
       <div class="row2">
         <div class="field "><label for="gc">Currency</label><select id="gc" disabled><option>Uganda shilling (UGX)</option></select></div>

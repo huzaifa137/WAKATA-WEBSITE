@@ -21,6 +21,7 @@ class SiteSettings
         'alert_recipients' => '',         // comma-separated emails; empty = the addresses in .env
         'alert_orders'     => true,       // email the team about every new order
         'alert_messages'   => true,       // ... and about every new message or support question
+        'stock_block'      => false,      // true = printed items cannot be added to a cart or ordered beyond the stock on hand
         'ga4'              => '',         // Google Analytics measurement ID, e.g. G-ABC123XYZ
     ];
 
@@ -86,7 +87,10 @@ class SiteSettings
             $list = (string) ($kind === 'orders' ? config('wakata.order_notify') : (config('wakata.support_notify') ?: config('wakata.order_notify')));
         }
 
-        return self::emails($list);
+        // Team members who switched the alert on under My profile get it too
+        $mine = \App\Models\Admin::where('status', 'active')->get()->filter(fn ($a) => $a->wantsAlert($kind))->pluck('email')->all();
+
+        return self::emails($list . ',' . implode(',', $mine));
     }
 
     /** @return array<int, string> valid addresses only */

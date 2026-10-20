@@ -206,7 +206,7 @@ class AdminInsightsTest extends TestCase
 
         parse_str((string) parse_url($url, PHP_URL_QUERY), $q);
         $this->get($url)->assertOk();
-        $this->post(route('admin.reset-password.update'), ['token' => $q['token'], 'email' => $q['email'], 'password' => 'brand-new-pass', 'confirm' => 'brand-new-pass'])
+        $this->post(route('admin.reset-password.update'), ['token' => $q['token'], 'email' => $q['email'], 'password' => 'brand-new-pass-9', 'confirm' => 'brand-new-pass-9'])
             ->assertRedirect(route('admin.login'));
 
         $this->assertSame('active', $sarah->fresh()->status);

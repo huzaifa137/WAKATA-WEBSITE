@@ -20,7 +20,7 @@ class CartController extends Controller
         if ($result['added'] === 0) {
             return response()->json([
                 'ok'      => false,
-                'message' => 'Sorry, that item is not available right now.',
+                'message' => $result['out'] > 0 ? 'Sorry, that item is out of stock right now.' : 'Sorry, that item is not available right now.',
                 'count'   => $cart->count(),
             ], 422);
         }
@@ -30,6 +30,8 @@ class CartController extends Controller
             'count'   => $cart->count(),
             'added'   => $result['added'],
             'skipped' => $result['skipped'],
+            'limited' => $result['limited'],
+            'message' => $result['limited'] > 0 ? 'We only have a few left, so your cart holds the most we can supply.' : null,
         ]);
     }
 

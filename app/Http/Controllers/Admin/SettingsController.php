@@ -28,9 +28,10 @@ class SettingsController extends Controller
             'email' => ['required', 'email', 'max:190'],
             'goal'  => ['required', 'integer', 'min:0', 'max:100000000000'],
         ], ['email.*' => 'Enter a valid email address.', 'goal.*' => 'Enter the goal as a whole number.']);
+        $block = $request->boolean('stock_block');
 
         SiteContent::save(['contact.email' => $data['email']]);          // the one public email: the Contact email of Site content
-        SiteSettings::save(['goal' => (int) $data['goal']]);
+        SiteSettings::save(['goal' => (int) $data['goal'], 'stock_block' => $block]);
 
         return back()->with('status', 'General settings saved.');
     }

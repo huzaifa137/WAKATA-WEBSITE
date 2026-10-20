@@ -71,7 +71,20 @@ class OrderFlow
 
         $by = $admin ? 'By ' . $admin->name : null;
 
-        DB::transaction(function () use ($order, $status, $admin, $by) {
+        $unchanged = false;
+
+        DB::transaction(function () use ($order, $status, $admin, $by, &$unchanged) {
+            // Two people on the same order at once: the second one waits here, then sees what the first one did
+            self::lock($order);
+            if (self::isClosed($order)) {
+                throw new OrderRuleException('This order is ' . $order->status . ', so it can no longer be changed.');
+            }
+            if ($order->status === $status) {
+                $unchanged = true;
+
+                return;
+            }
+
             if ($status === 'completed' && $order->payment_status !== 'paid') {
                 if ($order->payment_method === 'cash' && $order->payment_status === 'pending') {
                     self::receivePayment($order, 'Cash collected', $admin);
@@ -92,6 +105,10 @@ class OrderFlow
 
             $order->record(self::historyLabel($order, $status), $order->courier_note && $status === 'shipped' ? $order->courier_note : $by);
         });
+
+        if ($unchanged) {
+            return false;
+        }
 
         if ($notify) {
             [$headline, $body] = self::message($order, $status);
@@ -114,6 +131,14 @@ class OrderFlow
         $order->loadMissing('items');
 
         DB::transaction(function () use ($order, $admin, $reference) {
+            self::lock($order);
+            if (self::isClosed($order)) {
+                throw new OrderRuleException('This order is ' . $order->status . ', so its payment can no longer be changed.');
+            }
+            if ($order->payment_status === 'paid') {
+                throw new OrderRuleException('This payment is already confirmed.');
+            }
+
             if ($reference && ! $order->transaction_ref) {
                 $order->transaction_ref = trim($reference);
             }
@@ -154,6 +179,14 @@ class OrderFlow
         $order->loadMissing('items');
 
         DB::transaction(function () use ($order, $admin, $reason) {
+            self::lock($order);
+            if ($order->status === 'refunded' || $order->payment_status === 'refunded') {
+                throw new OrderRuleException('This order has already been refunded.');
+            }
+            if ($order->payment_status !== 'paid') {
+                throw new OrderRuleException('Only a paid order can be refunded.');
+            }
+
             $order->forceFill(['payment_status' => 'refunded', 'status' => 'refunded'])->save();
             self::restoreStock($order, $admin, 'Order refunded');
             $order->record('Refund issued', trim('Returned via ' . $order->payment_label . ($reason ? '. ' . $reason : '')));
@@ -233,11 +266,7 @@ class OrderFlow
         });
 
         if (self::canEmail($order)) {
-            try {
-                Mail::to($order->customer_email)->send(new OrderPlacedMail($order->load('items')));
-            } catch (\Throwable $e) {
-                report($e);
-            }
+            Outbox::send($order->customer_email, new OrderPlacedMail($order->load('items')));
         }
 
         return $order;
@@ -293,6 +322,19 @@ class OrderFlow
         $order->record('PDF files emailed', count($files) . ' file(s)' . ($admin ? ', sent by ' . $admin->name : ''));
 
         return count($files);
+    }
+
+    /**
+     * Lock the order row and reload it, so what the checks see is what is in the database right now and not what this
+     * request read a moment ago. Must be called inside a DB::transaction (the lock lasts until it ends).
+     */
+    private static function lock(Order $order): void
+    {
+        $fresh = Order::query()->whereKey($order->getKey())->lockForUpdate()->first();
+
+        if ($fresh) {
+            $order->setRawAttributes($fresh->getAttributes(), true);
+        }
     }
 
     /** Printed stock for the order's physical lines, taken once. */
@@ -393,10 +435,6 @@ class OrderFlow
             return;
         }
 
-        try {
-            Mail::to($order->customer_email)->send(new OrderUpdateMail($order->loadMissing('items'), $headline, $body));
-        } catch (\Throwable $e) {
-            report($e);
-        }
+        Outbox::send($order->customer_email, new OrderUpdateMail($order->loadMissing('items'), $headline, $body));
     }
 }

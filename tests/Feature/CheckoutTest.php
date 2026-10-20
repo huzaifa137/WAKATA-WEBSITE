@@ -81,7 +81,10 @@ class CheckoutTest extends TestCase
         $this->add([['type' => 'book', 'id' => self::BOOK]]);
         $this->checkout()->assertCreated();
 
-        $this->checkout()->assertStatus(422)->assertJson(['ok' => false, 'message' => 'Your cart is empty.']);
+        // the same person pressing the button again gets the same order back (a double click), never a second order
+        $this->checkout()->assertOk()->assertJson(['ok' => true, 'ref' => 'WK-10001']);
+        // anybody else with an empty cart is told so
+        $this->checkout(['email' => 'someone.else@school.ac.ug'])->assertStatus(422)->assertJson(['ok' => false, 'message' => 'Your cart is empty.']);
         $this->assertSame(1, Order::count());
     }
 

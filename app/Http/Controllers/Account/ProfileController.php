@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Account;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Support\PasswordRules;
 use App\Support\CustomerSession;
 use App\Support\RememberLogin;
 use Illuminate\Contracts\View\View;
@@ -87,7 +88,7 @@ class ProfileController extends Controller
 
         $data = $request->validate([
             'current_password' => ['required', 'string'],
-            'new_password'     => ['required', 'string', 'min:8', 'max:100', 'different:current_password'],
+            'new_password'     => ['required', 'string', PasswordRules::customer(), 'max:100', 'different:current_password'],
             'new_password_confirmation' => ['required', 'same:new_password'],
         ], [
             'current_password.required'          => 'Enter your current password.',

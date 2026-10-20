@@ -105,7 +105,7 @@ class Cart
 
         $found = self::resolve(array_values($wanted));
         $cart  = collect($this->raw())->keyBy('k');
-        $added = 0;
+        $added = $out = $limited = 0;
 
         foreach ($wanted as $k => $row) {
             if (! isset($found[$k])) {
@@ -115,13 +115,27 @@ class Cart
                 continue;
             }
             $have = $cart->get($k);
-            $cart->put($k, array_merge($row, ['qty' => min(self::MAX_QTY, ($have['qty'] ?? 0) + $row['qty'])]));
+            $qty  = min(self::MAX_QTY, ($have['qty'] ?? 0) + $row['qty']);
+
+            // With "stop selling out-of-stock items" on, a cart never holds more than the shelf has
+            $cap = self::cap($found[$k]);
+            if ($cap !== null && $qty > $cap) {
+                if ($cap < 1) {
+                    $out++;
+
+                    continue;
+                }
+                $qty = $cap;
+                $limited++;
+            }
+
+            $cart->put($k, array_merge($row, ['qty' => $qty]));
             $added++;
         }
 
         $this->store($cart->values()->all());
 
-        return ['added' => $added, 'skipped' => count($wanted) - $added];
+        return ['added' => $added, 'skipped' => count($wanted) - $added, 'out' => $out, 'limited' => $limited];
     }
 
     public function setQty(string $key, int $qty): void
@@ -158,16 +172,34 @@ class Cart
         $raw      = $this->raw();
         $products = self::resolve($raw);
 
-        $lines = [];
+        $lines   = [];
+        $soldOut = $reduced = 0;
         foreach ($raw as $row) {
-            if (isset($products[$row['k']])) {
-                $p       = $products[$row['k']];
-                $lines[] = $p + ['qty' => $row['qty'], 'line' => $p['price'] * $row['qty']];
+            if (! isset($products[$row['k']])) {
+                continue;                                   // gone or unpublished: counted in `removed` below
             }
+
+            $p   = $products[$row['k']];
+            $qty = $row['qty'];
+
+            // Stock fell since the item was added: keep what is left, drop the line when nothing is
+            $cap = self::cap($p);
+            if ($cap !== null && $qty > $cap) {
+                if ($cap < 1) {
+                    $soldOut++;
+
+                    continue;
+                }
+                $qty = $cap;
+                $reduced++;
+            }
+
+            $lines[] = $p + ['qty' => $qty, 'line' => $p['price'] * $qty];
         }
 
-        $removed = count($raw) - count($lines);
-        if ($removed > 0) {
+        $removed  = count($raw) - count($lines) - $soldOut;
+        $adjusted = $soldOut + $reduced;
+        if ($removed > 0 || $adjusted > 0) {
             $this->store(array_map(fn ($l) => Arr::only($l, ['k', 'type', 'id', 'fmt', 'qty']), $lines));
         }
 
@@ -177,7 +209,21 @@ class Cart
             'subtotal' => (int) array_sum(array_column($lines, 'line')),
             'physical' => collect($lines)->contains(fn ($l) => $l['phys']),
             'removed'  => $removed,
+            'adjusted' => $adjusted,
         ];
+    }
+
+    /**
+     * The most of a line a customer may hold, or null when there is no limit (stock rule off, or a PDF).
+     * Only the shop's online cart uses it: staff taking a phone order (priceLines) may still go over.
+     */
+    private static function cap(array $product): ?int
+    {
+        if (! SiteSettings::get('stock_block') || $product['stock'] === null) {
+            return null;
+        }
+
+        return max(0, (int) $product['stock']);
     }
 
     private function store(array $lines): void
@@ -254,7 +300,9 @@ class Cart
                 continue;
             }
 
-            $base = ['k' => $r['k'], 'type' => $r['type'], 'id' => $r['id'], 'fmt' => $r['fmt'], 'item_id' => $m->id];
+            // Printed units on the shelf (null = no limit: a PDF download)
+            $stock = $r['type'] === 'paper' ? ($r['fmt'] === 'pdf' ? null : (int) $m->print_stock) : (int) $m->stock;
+            $base  = ['k' => $r['k'], 'type' => $r['type'], 'id' => $r['id'], 'fmt' => $r['fmt'], 'item_id' => $m->id, 'stock' => $stock];
 
             $out[$r['k']] = $base + match ($r['type']) {
                 'book' => [
